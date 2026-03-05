@@ -39,8 +39,19 @@ Um aplicativo desktop para transcrição de áudio em tempo real, tradução, co
 ```bash
 git clone https://github.com/seu-usuario/transcritor-cyberpunk.git
 cd transcritor-cyberpunk
+exit
 
 ### 2. Crie um ambiente virtual
 bash
 python -m venv venv
 source venv/bin/activate
+
+3. Instale as dependências
+bash
+pip install -r requirements.txt
+
+5. Execute o programa
+bash
+./run.fish   # se estiver usando fish
+# ou
+python main.py
