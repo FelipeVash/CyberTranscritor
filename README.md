@@ -2,8 +2,6 @@
 
 Um aplicativo desktop para transcrição de áudio em tempo real, tradução, consulta ao DeepSeek e síntese de voz, com foco em privacidade (tudo rodando localmente), interface cyberpunk e atalhos de teclado eficientes.
 
-![Interface Cyberpunk](screenshot.png) *(opcional: adicione uma imagem da interface)*
-
 ## ✨ Funcionalidades
 
 - **Transcrição de áudio** com Whisper (modelos `tiny` a `large-v3`) rodando na GPU via ROCm.
