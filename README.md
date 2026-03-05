@@ -33,25 +33,106 @@ Um aplicativo desktop para transcrição de áudio em tempo real, tradução, co
   - requests, beautifulsoup4
   - language-tool-python
 
+O bloco de código no `README.md` deve ter cada comando em seu próprio bloco Markdown, com a linguagem correta especificada. O comando `exit` não deve estar no meio de comandos de instalação, e `bash` sozinho não é um comando útil. Abaixo está a versão corrigida:
+
 ## 🔧 Instalação
 
 ### 1. Clone o repositório
 ```bash
 git clone https://github.com/seu-usuario/transcritor-cyberpunk.git
+```
+
+```bash
 cd transcritor-cyberpunk
-exit
+```
 
 ### 2. Crie um ambiente virtual
-bash
+```bash
 python -m venv venv
+```
+
+```bash
 source venv/bin/activate
+```
 
-3. Instale as dependências
-bash
+### 3. Instale as dependências
+```bash
 pip install -r requirements.txt
+```
 
-5. Execute o programa
-bash
-./run.fish   # se estiver usando fish
-# ou
+### 5. Execute o programa
+```bash
+./run.fish  # se estiver usando fish
+```
+
+ou
+
+```bash
 python main.py
+```
+
+🎮 Uso
+Atalhos de teclado globais (configuráveis no KDE)
+Atalho	Ação
+Super+1	Iniciar/parar gravação
+Super+2	Traduzir a transcrição atual
+Super+3	Salvar a transcrição em arquivo
+Super+4	Corrigir gramática da transcrição
+Super+5	Abrir/restaurar a janela DeepSeek
+Super+0	Modo background (consulta rápida)
+Super+.	Parar reprodução de áudio (TTS)
+Interface principal
+Selecione o modelo Whisper, idioma de origem/destino e dispositivo (GPU/CPU).
+
+Clique em Gravar para capturar áudio; ao parar, a transcrição aparece na área superior.
+
+Use os botões Traduzir, MultiTradução, Salvar, Corrigir e DeepSeek.
+
+As traduções aparecem na área inferior com cores por idioma.
+
+Janela DeepSeek
+Digite sua pergunta ou use o botão Gravar Áudio para falar.
+
+Ative Deep Think para raciocínio aprofundado ou Pesquisa na Internet para resultados atualizados.
+
+As respostas podem ser ouvidas com TTS (botão Ouvir resposta) ou automaticamente se não contiverem código.
+
+O atalho Super+. interrompe a reprodução de áudio em qualquer lugar.
+
+Bandeja do sistema
+Ao minimizar a janela principal, ela é ocultada para a bandeja.
+
+Clique com o botão direito no ícone para mostrar, ocultar ou sair.
+
+Notificações informam o status da gravação e transcrição.
+
+📁 Estrutura do Projeto
+text
+transcritor/
+├── backend/            # Módulos de funcionalidades (transcrição, tradução, TTS, etc.)
+├── frontend/           # Interface gráfica (janelas, widgets, estilos)
+├── utils/              # Utilitários (configuração, constantes, helpers)
+├── main.py             # Ponto de entrada
+├── config.py           # Configurações globais
+├── run.fish            # Script de execução
+└── requirements.txt    # Dependências Python
+🧠 Tecnologias Utilizadas
+Whisper (via Hugging Face Transformers) – transcrição
+
+Hunyuan-MT-7B – tradução
+
+DeepSeek API – consulta por IA
+
+Piper TTS – síntese de voz
+
+D-Bus – atalhos globais
+
+Tkinter + ttkbootstrap – interface gráfica
+
+PyTorch (ROCm) – aceleração GPU
+
+🤝 Contribuição
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
+
+📄 Licença
+Este projeto está licenciado sob a MIT License.
