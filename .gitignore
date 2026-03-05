@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Logs e transcrições
+logs/
+transcricoes/
+test_audio/
+
+# Configurações locais
+.transcritor_config.json
+.deepseek_config.json
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+*.swp
+*.swo
+*~
+.DS_Store
