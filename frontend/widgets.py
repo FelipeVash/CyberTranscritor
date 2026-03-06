@@ -1,4 +1,10 @@
 # frontend/widgets.py
+"""
+Formatting toolbar for text widgets.
+Provides buttons for bold, italic, underline, etc.
+All logging is done through the centralized logger.
+"""
+
 import tkinter as tk
 from tkinter import ttk, colorchooser, messagebox, filedialog
 import ttkbootstrap as tb
@@ -7,164 +13,184 @@ from utils.helpers import (
     align_text, insert_table, export_html, import_html, increase_indent, decrease_indent
 )
 from utils.tooltip import ToolTip
+from utils.i18n import _
+from utils.logger import logger
 
 class FormatToolbar(ttk.Frame):
-    """Barra de ferramentas de formatação reutilizável com duas linhas."""
+    """Formatting toolbar with two rows of buttons."""
+
     def __init__(self, parent, text_widget, app, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.text_widget = text_widget
         self.app = app
-
         self._create_widgets()
 
     def _create_widgets(self):
-        # Primeira linha
+        # First row
         row1 = ttk.Frame(self)
         row1.pack(fill="x", pady=(0,2))
-
-        # Segunda linha
+        # Second row
         row2 = ttk.Frame(self)
         row2.pack(fill="x")
 
-        # ========== LINHA 1 ==========
-        # Negrito
-        btn_bold = ttk.Button(row1, text="B", width=3, style="Cyan.TButton",
+        # ========== ROW 1 ==========
+        # Bold (with bold font style)
+        btn_bold = ttk.Button(row1, text=_("main_window.format_toolbar.bold"), width=3, style="Bold.TButton",
                               command=lambda: apply_tag(self.text_widget, "bold"))
         btn_bold.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_bold, "Negrito (Ctrl+B)")
+        btn_bold.i18n_key = "main_window.format_toolbar.bold"
+        ToolTip(btn_bold, text_key="main_window.format_toolbar.bold_tooltip")
 
-        # Itálico
-        btn_italic = ttk.Button(row1, text="I", width=3, style="Cyan.TButton",
+        # Italic (with italic font style)
+        btn_italic = ttk.Button(row1, text=_("main_window.format_toolbar.italic"), width=3, style="Italic.TButton",
                                 command=lambda: apply_tag(self.text_widget, "italic"))
         btn_italic.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_italic, "Itálico (Ctrl+I)")
+        btn_italic.i18n_key = "main_window.format_toolbar.italic"
+        ToolTip(btn_italic, text_key="main_window.format_toolbar.italic_tooltip")
 
-        # Sublinhado
-        btn_underline = ttk.Button(row1, text="U", width=3, style="Cyan.TButton",
+        # Underline (with underline font style)
+        btn_underline = ttk.Button(row1, text=_("main_window.format_toolbar.underline"), width=3, style="Underline.TButton",
                                    command=lambda: apply_tag(self.text_widget, "underline"))
         btn_underline.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_underline, "Sublinhado (Ctrl+U)")
+        btn_underline.i18n_key = "main_window.format_toolbar.underline"
+        ToolTip(btn_underline, text_key="main_window.format_toolbar.underline_tooltip")
 
-        # Tachado
-        btn_strike = ttk.Button(row1, text="S", width=3, style="Cyan.TButton",
+        # Strike (no special font style available for overstrike, so use Cyan.TButton)
+        btn_strike = ttk.Button(row1, text=_("main_window.format_toolbar.strike"), width=3, style="Strike.TButton",
                                 command=lambda: apply_tag(self.text_widget, "overstrike"))
         btn_strike.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_strike, "Tachado")
+        btn_strike.i18n_key = "main_window.format_toolbar.strike"
+        ToolTip(btn_strike, text_key="main_window.format_toolbar.strike_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row1, text=" ").pack(side=tk.LEFT)
 
-        # Tamanho da fonte
+        # Font size
         font_sizes = [10, 12, 14, 16, 18, 20, 24]
-        font_menu = tb.Menubutton(row1, text="Tamanho ▼", bootstyle="secondary")
+        font_menu = tb.Menubutton(row1, text=_("main_window.format_toolbar.font_size"), bootstyle="secondary")
         font_menu.pack(side=tk.LEFT, padx=5)
+        font_menu.i18n_key = "main_window.format_toolbar.font_size"
         menu_font = tk.Menu(font_menu, tearoff=0)
         for size in font_sizes:
             menu_font.add_command(label=f"{size} px",
                                   command=lambda s=size: self.text_widget.configure(font=("Consolas", s)))
         font_menu.config(menu=menu_font)
-        ToolTip(font_menu, "Alterar tamanho da fonte (todo o texto)")
+        ToolTip(font_menu, text_key="main_window.format_toolbar.font_size_tooltip")
 
-        # Seletor de cor
+        # Color picker
         def choose_color():
-            color = colorchooser.askcolor(title="Escolha uma cor")[1]
+            color = colorchooser.askcolor(title=_("dialogs.common.choose_color"))[1]
             if color:
                 apply_tag(self.text_widget, color)
                 self.text_widget.tag_configure(color, foreground=color)
-        btn_color = ttk.Button(row1, text="🎨", width=3, style="Cyan.TButton", command=choose_color)
+        btn_color = ttk.Button(row1, text=_("main_window.format_toolbar.color"), width=3, style="Cyan.TButton", command=choose_color)
         btn_color.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_color, "Aplicar cor ao texto selecionado")
+        btn_color.i18n_key = "main_window.format_toolbar.color"
+        ToolTip(btn_color, text_key="main_window.format_toolbar.color_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row1, text="  ").pack(side=tk.LEFT)
 
-        # Título
-        btn_heading = ttk.Button(row1, text="H", width=3, style="Cyan.TButton",
+        # Heading
+        btn_heading = ttk.Button(row1, text=_("main_window.format_toolbar.heading"), width=3, style="Cyan.TButton",
                                  command=lambda: apply_tag(self.text_widget, "heading"))
         btn_heading.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_heading, "Aplicar estilo de título")
+        btn_heading.i18n_key = "main_window.format_toolbar.heading"
+        ToolTip(btn_heading, text_key="main_window.format_toolbar.heading_tooltip")
 
-        # Data/hora
-        btn_datetime = ttk.Button(row1, text="🕒", width=3, style="Cyan.TButton",
+        # Datetime
+        btn_datetime = ttk.Button(row1, text=_("main_window.format_toolbar.datetime"), width=3, style="Cyan.TButton",
                                   command=lambda: insert_datetime(self.text_widget))
         btn_datetime.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_datetime, "Inserir data e hora atual")
+        btn_datetime.i18n_key = "main_window.format_toolbar.datetime"
+        ToolTip(btn_datetime, text_key="main_window.format_toolbar.datetime_tooltip")
 
-        # ========== LINHA 2 ==========
-        # Alinhar esquerda
-        btn_left = ttk.Button(row2, text="⬅", width=3, style="Cyan.TButton",
+        # ========== ROW 2 ==========
+        # Align left
+        btn_left = ttk.Button(row2, text=_("main_window.format_toolbar.align_left"), width=3, style="Cyan.TButton",
                               command=lambda: align_text(self.text_widget, "left"))
         btn_left.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_left, "Alinhar parágrafo à esquerda")
+        btn_left.i18n_key = "main_window.format_toolbar.align_left"
+        ToolTip(btn_left, text_key="main_window.format_toolbar.align_left_tooltip")
 
-        # Centralizar
-        btn_center = ttk.Button(row2, text="⏺", width=3, style="Cyan.TButton",
+        # Align center
+        btn_center = ttk.Button(row2, text=_("main_window.format_toolbar.align_center"), width=3, style="Cyan.TButton",
                                 command=lambda: align_text(self.text_widget, "center"))
         btn_center.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_center, "Centralizar parágrafo")
+        btn_center.i18n_key = "main_window.format_toolbar.align_center"
+        ToolTip(btn_center, text_key="main_window.format_toolbar.align_center_tooltip")
 
-        # Alinhar direita
-        btn_right = ttk.Button(row2, text="➡", width=3, style="Cyan.TButton",
+        # Align right
+        btn_right = ttk.Button(row2, text=_("main_window.format_toolbar.align_right"), width=3, style="Cyan.TButton",
                                command=lambda: align_text(self.text_widget, "right"))
         btn_right.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_right, "Alinhar parágrafo à direita")
+        btn_right.i18n_key = "main_window.format_toolbar.align_right"
+        ToolTip(btn_right, text_key="main_window.format_toolbar.align_right_tooltip")
 
-        # Justificar
-        btn_justify = ttk.Button(row2, text="↔", width=3, style="Cyan.TButton",
+        # Justify
+        btn_justify = ttk.Button(row2, text=_("main_window.format_toolbar.align_justify"), width=3, style="Cyan.TButton",
                                  command=lambda: align_text(self.text_widget, "justify"))
         btn_justify.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_justify, "Justificar parágrafo")
+        btn_justify.i18n_key = "main_window.format_toolbar.align_justify"
+        ToolTip(btn_justify, text_key="main_window.format_toolbar.align_justify_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
-        # Aumentar indentação
-        btn_indent = ttk.Button(row2, text="⇢", width=3, style="Cyan.TButton",
+        # Increase indent
+        btn_indent = ttk.Button(row2, text=_("main_window.format_toolbar.indent_increase"), width=3, style="Cyan.TButton",
                                 command=lambda: increase_indent(self.text_widget))
         btn_indent.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_indent, "Aumentar indentação (adicionar 4 espaços)")
+        btn_indent.i18n_key = "main_window.format_toolbar.indent_increase"
+        ToolTip(btn_indent, text_key="main_window.format_toolbar.indent_increase_tooltip")
 
-        # Diminuir indentação
-        btn_dedent = ttk.Button(row2, text="⇠", width=3, style="Cyan.TButton",
+        # Decrease indent
+        btn_dedent = ttk.Button(row2, text=_("main_window.format_toolbar.indent_decrease"), width=3, style="Cyan.TButton",
                                 command=lambda: decrease_indent(self.text_widget))
         btn_dedent.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_dedent, "Diminuir indentação (remover 4 espaços)")
+        btn_dedent.i18n_key = "main_window.format_toolbar.indent_decrease"
+        ToolTip(btn_dedent, text_key="main_window.format_toolbar.indent_decrease_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
-        # Lista numerada
-        btn_numbered = ttk.Button(row2, text="1.", width=3, style="Cyan.TButton",
+        # Numbered list
+        btn_numbered = ttk.Button(row2, text=_("main_window.format_toolbar.numbered_list"), width=3, style="Cyan.TButton",
                                   command=lambda: insert_numbered_list(self.text_widget, self.app))
         btn_numbered.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_numbered, "Inserir/continuar lista numerada (Enter incrementa)")
+        btn_numbered.i18n_key = "main_window.format_toolbar.numbered_list"
+        ToolTip(btn_numbered, text_key="main_window.format_toolbar.numbered_list_tooltip")
 
-        # Lista com marcadores
-        btn_bullet = ttk.Button(row2, text="•", width=3, style="Cyan.TButton",
+        # Bullet list
+        btn_bullet = ttk.Button(row2, text=_("main_window.format_toolbar.bullet_list"), width=3, style="Cyan.TButton",
                                 command=lambda: insert_bullet(self.text_widget))
         btn_bullet.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_bullet, "Inserir/remover marcador na linha atual")
+        btn_bullet.i18n_key = "main_window.format_toolbar.bullet_list"
+        ToolTip(btn_bullet, text_key="main_window.format_toolbar.bullet_list_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
-        # Inserir tabela
-        btn_table = ttk.Button(row2, text="⧠", width=3, style="Cyan.TButton",
+        # Table
+        btn_table = ttk.Button(row2, text=_("main_window.format_toolbar.table"), width=3, style="Cyan.TButton",
                                command=lambda: insert_table(self.text_widget))
         btn_table.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_table, "Inserir tabela simples 3x2")
+        btn_table.i18n_key = "main_window.format_toolbar.table"
+        ToolTip(btn_table, text_key="main_window.format_toolbar.table_tooltip")
 
-        # Espaço
+        # Spacer
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
-        # Exportar HTML
-        btn_export_html = ttk.Button(row2, text="HTML", width=5, style="Cyan.TButton",
+        # Export HTML
+        btn_export_html = ttk.Button(row2, text=_("main_window.format_toolbar.export_html"), width=8, style="Cyan.TButton",
                                      command=lambda: export_html(self.text_widget))
         btn_export_html.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_export_html, "Exportar conteúdo como HTML (texto puro)")
+        btn_export_html.i18n_key = "main_window.format_toolbar.export_html"
+        ToolTip(btn_export_html, text_key="main_window.format_toolbar.export_html_tooltip")
 
-        # Importar HTML
-        btn_import_html = ttk.Button(row2, text="IMPORT", width=6, style="Cyan.TButton",
+        # Import HTML
+        btn_import_html = ttk.Button(row2, text=_("main_window.format_toolbar.import_html"), width=8, style="Cyan.TButton",
                                      command=lambda: import_html(self.text_widget))
         btn_import_html.pack(side=tk.LEFT, padx=1)
-        ToolTip(btn_import_html, "Importar de arquivo HTML (extrai texto puro)")
+        btn_import_html.i18n_key = "main_window.format_toolbar.import_html"
+        ToolTip(btn_import_html, text_key="main_window.format_toolbar.import_html_tooltip")

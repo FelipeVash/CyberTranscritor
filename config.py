@@ -24,3 +24,4 @@ BLOCK_DURATION = 5
 AUDIO_DIR = "test_audio"
 TRANSCRIPTIONS_DIR = "transcricoes"
 LOG_DIR = "logs"
+LANGUAGE = "pt-br"

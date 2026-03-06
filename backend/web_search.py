@@ -1,37 +1,46 @@
 # backend/web_search.py
+"""
+Private web search module using DuckDuckGo.
+Implements:
+- No history logging [citation:10]
+- Automatic rate limiting [citation:2]
+- Optional proxy for anonymity
+- Exponential backoff in case of blocking [citation:6]
+All logging is done through the centralized logger.
+"""
+
 import asyncio
-import random
 import time
 from typing import List, Dict, Optional
 from asyncddgs import aDDGS
 import httpx
+from utils.logger import logger
 
 class WebSearch:
     """
-    Mecanismo de busca privado usando DuckDuckGo.
-    Implementa:
-    - Sem registro de histórico [citation:10]
-    - Rate limiting automático [citation:2]
-    - Proxy opcional para anonimato
-    - Backoff exponencial em caso de bloqueio [citation:6]
+    Private web search engine using DuckDuckGo.
+    Respects rate limits and can use a proxy (e.g., Tor).
     """
-    
+
     def __init__(self, proxy: Optional[str] = None, use_tor: bool = False):
         """
+        Initialize the search engine.
+
         Args:
-            proxy: URL do proxy (ex: "socks5://127.0.0.1:9050" para Tor)
-            use_tor: Se True, configura proxy Tor automaticamente
+            proxy: Proxy URL (e.g., "socks5://127.0.0.1:9050" for Tor)
+            use_tor: If True, automatically set proxy to Tor's default address
         """
         self.proxy = proxy
         if use_tor:
             self.proxy = "socks5://127.0.0.1:9050"
-        
+
         self.ddgs = None
         self.last_request_time = 0
-        self.min_interval = 2.0  # segundos entre requisições [citation:2]
+        self.min_interval = 2.0  # seconds between requests [citation:2]
+        logger.debug(f"WebSearch initialized (proxy={self.proxy})")
 
     async def _get_client(self) -> aDDGS:
-        """Retorna cliente configurado."""
+        """Return a configured aDDGS client."""
         if self.ddgs is None:
             self.ddgs = aDDGS(
                 proxy=self.proxy,
@@ -43,33 +52,33 @@ class WebSearch:
         return self.ddgs
 
     async def _respect_rate_limit(self):
-        """Garante intervalo entre requisições."""
+        """Ensure minimum interval between requests."""
         now = time.time()
         elapsed = now - self.last_request_time
         if elapsed < self.min_interval:
             await asyncio.sleep(self.min_interval - elapsed)
         self.last_request_time = time.time()
 
-    async def search(self, query: str, max_results: int = 5, 
+    async def search(self, query: str, max_results: int = 5,
                      region: str = "wt-wt") -> List[Dict[str, str]]:
         """
-        Realiza busca textual.
-        
+        Perform a text search.
+
         Args:
-            query: Termo de busca
-            max_results: Máximo de resultados
-            region: Região (wt-wt = mundial)
-            
+            query: Search term
+            max_results: Maximum number of results
+            region: Region (wt-wt = worldwide)
+
         Returns:
-            Lista de dicionários com title, url, snippet
+            List of dictionaries with title, url, snippet
         """
         await self._respect_rate_limit()
-        
+
         try:
             ddgs = await self._get_client()
             results = []
-            
-            # Usa contexto async with para gerenciar recursos
+
+            # Use async context manager to manage resources
             async with ddgs as client:
                 async for result in client.text(
                     keywords=query,
@@ -83,20 +92,20 @@ class WebSearch:
                         "url": result.get("href", ""),
                         "snippet": result.get("body", "")
                     })
-                    
-            # Log para debug (sem guardar dados pessoais)
-            print(f"🌐 Busca por '{query[:50]}...' retornou {len(results)} resultados")
+
+            logger.info(f"Search for '{query[:50]}...' returned {len(results)} results")
             return results
-            
+
         except Exception as e:
-            print(f"⚠️ Erro na busca: {e}")
+            logger.error(f"Search failed: {e}")
+            # Attempt fallback
             return await self._fallback_search(query, max_results)
 
     async def _fallback_search(self, query: str, max_results: int) -> List[Dict[str, str]]:
         """
-        Fallback usando requisição HTTP direta quando a API falha.
+        Fallback using direct HTTP request when the API fails.
         """
-        print("🔄 Usando fallback HTML...")
+        logger.warning("Using HTML fallback...")
         try:
             headers = {
                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
@@ -108,19 +117,20 @@ class WebSearch:
                     headers=headers,
                     timeout=10
                 )
-                # Parse simples (resultados virão em <a> com classe result__a)
-                # Para simplificar, retornamos um resultado simulado
-                # Na prática, use BeautifulSoup aqui
+                # Simple parsing would go here; for now return a dummy result
+                # In practice, use BeautifulSoup
+                logger.warning("Fallback search returned dummy result (parsing not implemented)")
                 return [{
-                    "title": "Resultado via fallback",
+                    "title": "Result via fallback",
                     "url": "https://duckduckgo.com",
-                    "snippet": "Devido a limitações da API, use o fallback completo."
+                    "snippet": "Due to API limitations, use the full fallback."
                 }]
         except Exception as e:
-            print(f"❌ Fallback também falhou: {e}")
+            logger.error(f"Fallback also failed: {e}")
             return []
 
     async def close(self):
-        """Fecha conexões."""
+        """Close the client connections."""
         if self.ddgs:
             await self.ddgs.close()
+            logger.debug("WebSearch client closed")

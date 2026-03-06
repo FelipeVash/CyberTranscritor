@@ -1,518 +1,337 @@
 # frontend/main_window.py
+"""
+Main application window.
+Builds the UI and delegates actions to the controller.
+All logging is done through the centralized logger.
+"""
+
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 import tkinter.font as tkfont
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
-import threading
-from pathlib import Path
 import sys
-import torch
-import dbus
-import dbus.service
-import dbus.mainloop.glib
-from gi.repository import GLib
-import queue
+from pathlib import Path
 import traceback
-import subprocess
-
-# Configura o main loop do GLib para D-Bus
-dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
-# Fila para comunicação entre a thread GLib e a thread principal do Tkinter
-dbus_queue = queue.Queue()
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import config
-from backend.transcriber import TranscriberGPU
-from backend.translator import Translator
-from backend.deepseek_client import DeepSeekClient
-from backend.corrector import correct_text
-from backend.audio_recorder import AudioRecorder
-from backend.tts import TTSEngine
-from frontend.dialogs import show_correction_dialog
 from frontend.widgets import FormatToolbar
 from frontend.styles import configure_styles
-from frontend.deepseek_window import DeepSeekWindow
-from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES, LT_LANGUAGE_MAP
-from utils.helpers import handle_enter
-from utils.tooltip import ToolTip
-from utils.config_persistence import load_config, save_config
+from frontend.dialogs import show_correction_dialog
 from frontend.tray_icon import TrayIcon
+from frontend.settings_window import SettingsWindow
+from utils.tooltip import ToolTip
+from utils.helpers import handle_enter
+from utils.i18n import _
+from utils.logger import logger
+import config
 
-class TranscriptionStudio(dbus.service.Object):
-    def __init__(self):
+class TranscriptionStudio:
+    """
+    Main application window.
+    Builds the UI and delegates actions to the controller.
+    """
+
+    def __init__(self, controller):
+        self.controller = controller
         self.root = tb.Window(themename="darkly")
-        self.root.title("Studio de Transcrição Cyberpunk")
-        self.root.geometry("1100x1000")
+        self.root.title(_("main_window.title"))
+        self.root.geometry("1100x1200")  # Updated height
 
         configure_styles(self.root.style)
 
-        # Registra o objeto D-Bus
-        try:
-            bus = dbus.SessionBus()
-            bus_name = dbus.service.BusName('studio.transcritor', bus)
-            dbus.service.Object.__init__(self, bus_name, '/studio/transcritor')
-            print("✅ Objeto D-Bus registrado")
-        except Exception as e:
-            print(f"❌ Erro ao registrar D-Bus: {e}")
-            traceback.print_exc()
+        # Initialize controller variables with the root window
+        self.controller.init_variables(self.root)
 
-        # Carrega configurações salvas
-        saved = load_config()
-        self.model_size = tk.StringVar(value=saved.get("model_size", config.MODEL_SIZE))
-        self.device = tk.StringVar(value=saved.get("device", config.DEVICE))
-        self.current_language = tk.StringVar(value=saved.get("source_language", "pt"))
-        self.translate_target = tk.StringVar(value=saved.get("target_language", "en"))
+        # References to UI widgets that need to be accessed
+        self.text_area = None
+        self.trans_area = None
+        self.btn_record = None
+        self.btn_deepseek = None
+        self.rec_indicator = None
+        self.status_var = None
+        self.vram_var = None
+        self.progress_bar = None
 
-        self.is_recording = False
-        self.recorder = None
-        self.transcriber = None
-        self.translator = None
-        self.deepseek_window = None  # referência para a janela DeepSeek
-        self.tts_engine = TTSEngine(device=self.device.get())
-
-        self.all_languages = ALL_LANGUAGES
-        self.all_language_names = ALL_LANGUAGE_NAMES
-        self.lt_language_map = LT_LANGUAGE_MAP
-
-        self.deepseek_client = None
-        self.deepseek_model = tk.StringVar(value="deepseek-chat")
-        self.last_number = 0
-
-        # Trava para evitar múltiplas execuções simultâneas
-        self.busy = False
-
-        # Variáveis para gravação em background
-        self.background_recording = False
-        self.background_recorder = None
-        self.background_timer = None
-        self.background_audio_buffer = []
-
+        self.setup_menu()
         self.setup_ui()
         self.check_microphone()
         self.setup_bindings()
-        self.check_dbus_queue()
 
-        # Inicia o processamento periódico dos eventos GLib (em vez de thread)
-        self.process_glib_events()
-
-        # Inicia ícone da bandeja
+        # Start system tray icon
         self.tray = TrayIcon(self)
         self.tray.start()
 
-        # Ao fechar a janela, esconde em vez de sair
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        # Start D-Bus queue polling and GLib event processing
+        self.poll_dbus_queue()
+        self.process_glib_events()
 
-    # ==================== PROCESSAMENTO DE EVENTOS GLIB ====================
+        # Start VRAM monitoring
+        self.update_vram_display()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        logger.info("Main window initialized")
+
+    def setup_menu(self):
+        """Create the main menu bar."""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=_("main_window.menu.file"), menu=file_menu)
+        file_menu.add_command(label=_("main_window.menu.file_menu.save_transcription"), 
+                              command=self.controller.save_transcription)
+        file_menu.add_command(label=_("main_window.menu.file_menu.save_translations"), 
+                              command=self.controller.save_translations)
+        file_menu.add_separator()
+        file_menu.add_command(label=_("main_window.menu.file_menu.exit"), 
+                              command=self.quit_app)
+
+        # Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=_("main_window.menu.edit"), menu=edit_menu)
+        edit_menu.add_command(label=_("main_window.menu.edit_menu.correct_transcription"), 
+                              command=self.controller.correct_transcription)
+        edit_menu.add_command(label=_("main_window.menu.edit_menu.correct_translation"), 
+                              command=self.controller.correct_translation)
+
+        # Tools menu
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=_("main_window.menu.tools"), menu=tools_menu)
+        tools_menu.add_command(label=_("main_window.menu.tools_menu.settings"), 
+                              command=self.open_settings)
+        tools_menu.add_command(label=_("main_window.menu.tools_menu.open_deepseek"), 
+                              command=self.controller.open_deepseek_window)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=_("main_window.menu.help"), menu=help_menu)
+        help_menu.add_command(label=_("main_window.menu.help_menu.about"), 
+                              command=self.show_about)
+
+        logger.debug("Main menu created")
+
+    def open_settings(self):
+        """Open the settings window."""
+        SettingsWindow(self.root, self.controller)
+
+    def show_about(self):
+        """Show the about dialog."""
+        messagebox.showinfo(
+            _("dialogs.about.title"),
+            f"{_('dialogs.about.version')}\n\n"
+            f"{_('dialogs.about.description')}\n\n"
+            f"{_('dialogs.about.license')}",
+            parent=self.root
+        )
+
+    def poll_dbus_queue(self):
+        """Periodically call the controller's D-Bus queue processor."""
+        self.controller.process_dbus_queue()
+        self.root.after(100, self.poll_dbus_queue)
+
     def process_glib_events(self):
-        """Processa eventos pendentes do GLib sem bloquear o Tkinter."""
-        while GLib.main_context_default().iteration(False):
-            pass
+        """Process pending GLib events without blocking the Tkinter main loop."""
+        try:
+            from gi.repository import GLib
+            while GLib.main_context_default().iteration(False):
+                pass
+        except Exception as e:
+            logger.error(f"GLib event processing error: {e}")
         self.root.after(10, self.process_glib_events)
 
-    # ==================== PERSISTÊNCIA ====================
-    def on_closing(self):
-        """Ao fechar a janela, esconde em vez de sair."""
-        self.hide_window()
+    # ==================== UI CONSTRUCTION ====================
 
-    # ==================== MÉTODOS D-BUS ====================
-    @dbus.service.method('studio.transcritor')
-    def toggle_recording(self):
-        print("🔵 D-BUS: toggle_recording chamado")
-        if self.is_deepseek_focused():
-            print("⏸️ Janela DeepSeek em foco, ignorando toggle_recording")
-            return
-        dbus_queue.put(('toggle_recording',))
-
-    @dbus.service.method('studio.transcritor')
-    def cmd_translate(self):
-        print("🔵 D-BUS: cmd_translate chamado")
-        dbus_queue.put(('cmd_translate',))
-
-    @dbus.service.method('studio.transcritor')
-    def cmd_save(self):
-        print("🔵 D-BUS: cmd_save chamado")
-        dbus_queue.put(('cmd_save',))
-
-    @dbus.service.method('studio.transcritor')
-    def cmd_correct(self):
-        print("🔵 D-BUS: cmd_correct chamado")
-        dbus_queue.put(('cmd_correct',))
-
-    @dbus.service.method('studio.transcritor')
-    def open_deepseek_window(self):
-        print("🔵 D-BUS: open_deepseek_window chamado")
-        dbus_queue.put(('open_deepseek_window',))
-
-    # ==================== PROCESSAMENTO DA FILA ====================
-    def check_dbus_queue(self):
-        try:
-            while True:
-                cmd = dbus_queue.get_nowait()
-                print(f"🟢 Fila: comando recebido = {cmd[0]}")
-                try:
-                    if cmd[0] == 'toggle_recording':
-                        self._toggle_recording()
-                    elif cmd[0] == 'cmd_translate':
-                        self.translate_text_action()
-                    elif cmd[0] == 'cmd_save':
-                        self.save_transcription_action()
-                    elif cmd[0] == 'cmd_correct':
-                        self.correct_transcription_action()
-                    elif cmd[0] == 'open_deepseek_window':
-                        self.open_deepseek_window_action()
-                    else:
-                        print(f"⚠️ Comando desconhecido: {cmd[0]}")
-                except Exception as e:
-                    print(f"❌ Erro ao processar comando {cmd[0]}: {e}")
-                    traceback.print_exc()
-        except queue.Empty:
-            pass
-        self.root.after(100, self.check_dbus_queue)
-
-    def _toggle_recording(self):
-        print("🟠 Executando _toggle_recording")
-        if self.busy:
-            print("⏳ Ocupado, ignorando comando")
-            return
-        self.busy = True
-        try:
-            if not self.is_recording:
-                self.start_recording()
-            else:
-                self.stop_and_transcribe()
-        finally:
-            self.busy = False
-
-    def translate_text_action(self):
-        print("🟠 Executando translate_text_action")
-        self.translate_text()
-
-    def save_transcription_action(self):
-        print("🟠 Executando save_transcription_action")
-        self.save_transcription()
-
-    def correct_transcription_action(self):
-        print("🟠 Executando correct_transcription_action")
-        self.correct_transcription()
-
-    # ==================== AÇÃO DE ABRIR DEEPSEEK (implementação correta) ====================
-    def open_deepseek_window_action(self):
-        print("🔵 open_deepseek_window_action chamado (interface)")
-        # Se a janela principal não estiver visível (minimizada), entra em modo background
-        if not self.root.winfo_viewable():
-            if self.background_recording:
-                self.stop_background_recording()
-            else:
-                self.start_background_recording()
-        else:
-            # Verifica se a janela DeepSeek já existe
-            if self.deepseek_window and self.deepseek_window.window and self.deepseek_window.window.winfo_exists():
-                # Se existe, traz para frente
-                self.deepseek_window.window.deiconify()
-                self.deepseek_window.window.lift()
-                self.deepseek_window.window.focus_force()
-            else:
-                # Caso contrário, cria uma nova
-                try:
-                    self.deepseek_window = DeepSeekWindow(self.root, self)
-                except Exception as e:
-                    print(f"❌ Erro ao abrir DeepSeekWindow: {e}")
-                    traceback.print_exc()
-                    messagebox.showerror("Erro", f"Não foi possível abrir a janela DeepSeek:\n{e}")
-
-    def is_deepseek_focused(self):
-        if self.deepseek_window and self.deepseek_window.window and self.deepseek_window.window.winfo_exists():
-            focused = self.deepseek_window.window.focus_get() is not None
-            return focused
-        return False
-
-    # ==================== GRAVAÇÃO EM BACKGROUND (SUPER+0) ====================
-    def start_background_recording(self):
-        if self.background_recording:
-            return
-        self.background_recording = True
-        self.background_audio_buffer = []
-        self.background_recorder = AudioRecorder(
-            samplerate=config.SAMPLE_RATE,
-            channels=config.CHANNELS,
-            callback=self.on_background_audio_chunk
-        )
-        self.background_recorder.start()
-        self.show_notification("🎤 Gravação iniciada", "Fale agora. Pressione Super+0 novamente para parar.")
-        self.reset_silence_timer()
-
-    def stop_background_recording(self, from_timer=False):
-        if not self.background_recording:
-            return
-        self.background_recording = False
-        if self.background_timer:
-            self.background_timer.cancel()
-            self.background_timer = None
-        audio = self.background_recorder.stop()
-        if audio.size == 0:
-            if from_timer:
-                self.show_notification("Nada gravado", "Tempo limite de silêncio atingido.")
-            else:
-                self.show_notification("Nada gravado", "Nenhum áudio detectado.")
-            return
-        self.show_notification("⏳ Processando", "Transcrevendo e consultando DeepSeek...")
-        self.process_background_audio(audio)
-
-    def on_background_audio_chunk(self, chunk):
-        self.reset_silence_timer()
-
-    def reset_silence_timer(self):
-        if self.background_timer:
-            self.background_timer.cancel()
-        self.background_timer = threading.Timer(5.0, lambda: self.stop_background_recording(from_timer=True))
-        self.background_timer.start()
-
-    def process_background_audio(self, audio):
-        if self.transcriber is None:
-            if not self.load_model():
-                return
-        def task():
-            try:
-                text = self.transcriber.transcribe(audio, language=self.current_language.get())
-                if text.startswith("[Erro:") or text.startswith("❌") or "áudio muito baixo" in text.lower():
-                    self.root.after(0, lambda: messagebox.showerror("Erro na transcrição", text))
-                    return
-                if self.deepseek_client is None:
-                    try:
-                        self.deepseek_client = DeepSeekClient()
-                    except Exception as e:
-                        self.show_notification("Erro", f"Falha ao configurar DeepSeek: {e}")
-                        return
-                resposta = self.deepseek_client.ask(text, opt_out=True)
-                self.root.after(0, lambda: self.handle_background_response(text, resposta))
-            except Exception as e:
-                self.root.after(0, lambda: self.show_notification("Erro", f"Falha no processamento: {e}"))
-
-        threading.Thread(target=task, daemon=True).start()
-
-    def handle_background_response(self, prompt, resposta):
-        if len(resposta) < 300 and '```' not in resposta and '    ' not in resposta:
-            self.show_notification("Resposta do DeepSeek", resposta[:200] + ("..." if len(resposta)>200 else ""))
-            threading.Thread(target=self._speak_response, args=(resposta,), daemon=True).start()
-        else:
-            try:
-                self.deepseek_window = DeepSeekWindow(self.root, self, initial_prompt=prompt, initial_response=resposta)
-            except Exception as e:
-                print(f"❌ Erro ao abrir DeepSeekWindow: {e}")
-                traceback.print_exc()
-                messagebox.showerror("Erro", f"Não foi possível abrir a janela DeepSeek:\n{e}")
-
-    # ==================== VOCALIZAÇÃO ====================
-    def _speak_response(self, text):
-        file_path = self.tts_engine.synthesize(text, language=self.current_language.get())
-        if file_path:
-            self.tts_engine.play_audio(file_path)
-
-    # ==================== LIMPEZA DE MEMÓRIA GPU ====================
-    def unload_models(self):
-        if self.transcriber:
-            print("Descarregando transcriber...")
-            del self.transcriber
-            self.transcriber = None
-        if self.translator:
-            print("Descarregando tradutor...")
-            self.translator.unload()
-            del self.translator
-            self.translator = None
-        if self.tts_engine:
-            self.tts_engine.unload_model()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        print("Memória GPU liberada.")
-
-    def load_model(self):
-        if self.transcriber is not None and self.transcriber.model_size != self.model_size.get():
-            print("Tamanho de modelo alterado, descarregando anterior...")
-            del self.transcriber
-            self.transcriber = None
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        if self.transcriber is not None:
-            return True
-        try:
-            self.status_var.set(f"⏳ Carregando modelo {self.model_size.get()}...")
-            self.transcriber = TranscriberGPU(
-                model_size=self.model_size.get(),
-                device=self.device.get()
-            )
-            self.status_var.set(f"✅ Modelo {self.model_size.get()} carregado.")
-            return True
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao carregar modelo: {e}")
-            return False
-
-    # ==================== BANDEJA E NOTIFICAÇÕES ====================
-    def hide_window(self):
-        self.root.withdraw()
-        self.show_notification("Aplicativo minimizado", "O programa continua em segundo plano.")
-
-    def show_window(self):
-        self.root.deiconify()
-        self.root.lift()
-        self.root.focus_force()
-        if self.deepseek_window and self.deepseek_window.window and self.deepseek_window.window.winfo_exists():
-            self.deepseek_window.window.deiconify()
-            self.deepseek_window.window.lift()
-            self.deepseek_window.window.focus_force()
-
-    def quit_app(self):
-        print("Encerrando aplicativo...")
-        config_dict = {
-            "model_size": self.model_size.get(),
-            "device": self.device.get(),
-            "source_language": self.current_language.get(),
-            "target_language": self.translate_target.get()
-        }
-        save_config(config_dict)
-        self.unload_models()
-        self.tray.stop()
-        self.root.quit()
-        sys.exit(0)
-
-    def show_notification(self, title, message):
-        try:
-            subprocess.run(['notify-send', title, message])
-        except Exception as e:
-            print(f"Erro ao enviar notificação: {e}")
-
-    # ==================== INTERFACE ====================
     def setup_ui(self):
-        control_frame = ttk.LabelFrame(self.root, text="⚡ CONTROLES", padding=10)
+        """Create and arrange all UI widgets."""
+        logger.debug("Building main window UI")
+
+        control_frame = ttk.LabelFrame(self.root, text=_("main_window.controls.frame_title"), padding=10)
         control_frame.pack(fill="x", padx=10, pady=5)
+        control_frame.i18n_key = "main_window.controls.frame_title"
 
-        # Linha 0: Modelo, idioma de origem, idioma de destino
-        ttk.Label(control_frame, text="Modelo:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        model_combo = tb.Combobox(control_frame, textvariable=self.model_size,
-                                   values=["tiny", "base", "small", "medium", "large"],
-                                   state="readonly", width=8)
-        model_combo.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-        ToolTip(model_combo, "Modelo Whisper a ser usado para transcrição")
-
-        ttk.Label(control_frame, text="Idioma (origem):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        lang_combo = tb.Combobox(control_frame, textvariable=self.current_language,
+        # Row 0: Source language and target language only (model/device moved to settings)
+        lbl_source = ttk.Label(control_frame, text=_("main_window.controls.source_language"))
+        lbl_source.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        lbl_source.i18n_key = "main_window.controls.source_language"
+        lang_combo = tb.Combobox(control_frame, textvariable=self.controller.current_language,
                                    values=list(config.LANGUAGES.keys()),
                                    state="readonly", width=8)
-        lang_combo.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-        ToolTip(lang_combo, "Idioma do áudio (para transcrição)")
+        lang_combo.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        ToolTip(lang_combo, text_key="main_window.tooltips.source_language")
 
-        ttk.Label(control_frame, text="Traduzir para:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        target_combo = tb.Combobox(control_frame, textvariable=self.translate_target,
-                                     values=self.all_languages,
+        lbl_target = ttk.Label(control_frame, text=_("main_window.controls.target_language"))
+        lbl_target.grid(row=0, column=2, padx=20, pady=5, sticky="w")
+        lbl_target.i18n_key = "main_window.controls.target_language"
+        target_combo = tb.Combobox(control_frame, textvariable=self.controller.translate_target,
+                                     values=self.controller.all_languages,
                                      state="readonly", width=8)
-        target_combo.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-        ToolTip(target_combo, "Idioma de destino para tradução")
+        target_combo.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        ToolTip(target_combo, text_key="main_window.tooltips.target_language")
 
-        # Linha 1: Dispositivo e botões principais
-        ttk.Label(control_frame, text="Dispositivo:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        device_combo = tb.Combobox(control_frame, textvariable=self.device,
-                                     values=["cpu", "cuda"],
-                                     state="readonly", width=8)
-        device_combo.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-        ToolTip(device_combo, "Dispositivo para inferência (GPU recomendada)")
+                # Row 1: Action buttons (record, translate, multitranslate, deepseek)
+        btn_frame = ttk.Frame(control_frame)
+        btn_frame.grid(row=1, column=0, columnspan=4, pady=15)  # Increased pady for spacing
 
-        # Botão único de gravação (toggle)
-        self.btn_record = ttk.Button(control_frame, text="▶ Gravar",
-                                      style="Pink.TButton", width=20, command=self.toggle_recording)
-        self.btn_record.grid(row=0, column=2, padx=5, pady=5)
-        ToolTip(self.btn_record, "Iniciar/parar gravação (Super+1)")
+        # Record button (Pink)
+        self.btn_record = ttk.Button(btn_frame, text=_("main_window.controls.buttons.record"),
+                                      style="Pink.TButton", width=15, command=self.controller.toggle_recording)
+        self.btn_record.pack(side=tk.LEFT, padx=8)  # Increased padx
+        self.btn_record.i18n_key = "main_window.controls.buttons.record"
+        ToolTip(self.btn_record, text_key="main_window.controls.buttons.record_tooltip")
 
-        # Botão Traduzir com ícone
-        self.btn_translate = ttk.Button(control_frame, text="🌐 Traduzir",
-                                        style="Magenta.TButton", width=20, command=self.translate_text)
-        self.btn_translate.grid(row=1, column=2, padx=5, pady=5)
-        ToolTip(self.btn_translate, "Traduzir transcrição para o idioma selecionado (Super+2)")
+        # Translate button (Magenta)
+        self.btn_translate = ttk.Button(btn_frame, text=_("main_window.controls.buttons.translate"),
+                                        style="Magenta.TButton", width=15, command=self.controller.translate_text)
+        self.btn_translate.pack(side=tk.LEFT, padx=8)
+        self.btn_translate.i18n_key = "main_window.controls.buttons.translate"
+        ToolTip(self.btn_translate, text_key="main_window.controls.buttons.translate_tooltip")
 
-        # Botão MultiTradução com ícone
-        self.btn_translate_all = ttk.Button(control_frame, text="🌍 MultiTradução",
-                                            style="Magenta.TButton", width=20, command=self.translate_all)
-        self.btn_translate_all.grid(row=1, column=3, padx=5, pady=5)
-        ToolTip(self.btn_translate_all, "Traduzir transcrição para todos os idiomas")
+        # MultiTranslate button (Magenta)
+        self.btn_translate_all = ttk.Button(btn_frame, text=_("main_window.controls.buttons.multitranslate"),
+                                            style="Magenta.TButton", width=15, command=self.controller.translate_all)
+        self.btn_translate_all.pack(side=tk.LEFT, padx=8)
+        self.btn_translate_all.i18n_key = "main_window.controls.buttons.multitranslate"
+        ToolTip(self.btn_translate_all, text_key="main_window.controls.buttons.multitranslate_tooltip")
 
-        # Linha 2: Botões secundários
-        # Botão Salvar com ícone
-        self.btn_save = ttk.Button(control_frame, text="💾 Salvar",
-                                   style="Cyan.TButton", width=20, command=self.save_transcription)
-        self.btn_save.grid(row=0, column=3, padx=5, pady=5)
-        ToolTip(self.btn_save, "Salvar transcrição atual em arquivo (Super+3)")
+        # DeepSeek button (Cyan)
+        self.btn_deepseek = ttk.Button(btn_frame, text=_("main_window.controls.buttons.deepseek"),
+                                       style="Cyan.TButton", width=15, command=self.controller.open_deepseek_window)
+        self.btn_deepseek.pack(side=tk.LEFT, padx=8)
+        self.btn_deepseek.i18n_key = "main_window.controls.buttons.deepseek"
+        ToolTip(self.btn_deepseek, text_key="main_window.controls.buttons.deepseek_tooltip")
 
-        # Botão DeepSeek com ícone
-        self.btn_deepseek = ttk.Button(control_frame, text="🤖 DeepSeek",
-                                       style="Cyan.TButton", width=20, command=self.open_deepseek_window_action)
-        self.btn_deepseek.grid(row=2, column=2, padx=5, pady=5)
-        ToolTip(self.btn_deepseek, "Abrir/restaurar janela de consulta DeepSeek (Super+5)")
-
-        # Indicador de gravação (abaixo dos controles)
-        self.rec_indicator = tk.Label(self.root, text="⏹ PARADO",
+        # Recording indicator (below buttons)
+        self.rec_indicator = tk.Label(self.root, text=_("main_window.indicators.stopped"),
                                       bg="#404040", fg="#888888",
                                       font=("Arial", 16, "bold"), pady=10)
         self.rec_indicator.pack(fill="x", padx=10, pady=5)
-        ToolTip(self.rec_indicator, "Status da gravação")
+        self.rec_indicator.i18n_key = "main_window.indicators.stopped"
+        ToolTip(self.rec_indicator, text_key="main_window.tooltips.rec_indicator")
 
-        # ========== ÁREA DE TRANSCRIÇÃO ==========
-        text_frame = ttk.LabelFrame(self.root, text="📝 TRANSCRIÇÃO", padding=10)
+        # ========== TRANSCRIPTION AREA ==========
+        text_frame = ttk.LabelFrame(self.root, text=_("main_window.tabs.transcription"), padding=10)
         text_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        text_frame.i18n_key = "main_window.tabs.transcription"
 
         self.text_area = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=("Consolas", 11),
                                                     bg="#1e1e1e", fg="#d4d4d4", insertbackground="white",
                                                     height=8)
         self.trans_toolbar = FormatToolbar(text_frame, self.text_area, self)
-        self.trans_toolbar.pack(fill="x", pady=(0,5))
-        self.text_area.pack(fill="both", expand=True)
+        self.trans_toolbar.pack(fill="x", pady=(0,5))  # já existe
+        # Adicionar um espaço extra
+        ttk.Label(text_frame, text="").pack(pady=(0,2))  # linha vazia
+        self.text_area.pack(fill="both", expand=True, pady=(0,5))
 
         btn_frame_trans = ttk.Frame(text_frame)
-        btn_frame_trans.pack(fill="x", pady=5)
-        ttk.Button(btn_frame_trans, text="✍️ Corrigir Transcrição",
-                   style="Cyan.TButton", command=self.correct_transcription).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame_trans, text="🗑️ Limpar",
-                   style="secondary", command=lambda: self.text_area.delete(1.0, tk.END)).pack(side=tk.LEFT, padx=5)
+        btn_frame_trans.pack(fill="x", pady=10)
+        btn_correct_trans = ttk.Button(btn_frame_trans, text=_("main_window.controls.buttons.correct"),
+                                        style="Cyan.TButton", command=self.controller.correct_transcription)
+        btn_correct_trans.pack(side=tk.LEFT, padx=5)
+        btn_correct_trans.i18n_key = "main_window.controls.buttons.correct"
+        ToolTip(btn_correct_trans, text_key="main_window.controls.buttons.correct_tooltip")
 
-        # ========== ÁREA DE TRADUÇÕES ==========
-        trans_frame = ttk.LabelFrame(self.root, text="🌐 TRADUÇÕES", padding=10)
+        btn_clear_trans = ttk.Button(btn_frame_trans, text=_("main_window.controls.buttons.clear"),
+                                      style="secondary", command=lambda: self.text_area.delete(1.0, tk.END))
+        btn_clear_trans.pack(side=tk.LEFT, padx=5)
+        btn_clear_trans.i18n_key = "main_window.controls.buttons.clear"
+        ToolTip(btn_clear_trans, text_key="main_window.controls.buttons.clear_tooltip")
+
+        # ========== TRANSLATIONS AREA ==========
+        trans_frame = ttk.LabelFrame(self.root, text=_("main_window.tabs.translations"), padding=10)
         trans_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        trans_frame.i18n_key = "main_window.tabs.translations"
 
         self.trans_area = scrolledtext.ScrolledText(trans_frame, wrap=tk.WORD, font=("Consolas", 11),
                                                      bg="#1e1e1e", fg="#d4d4d4", insertbackground="white",
                                                      height=8)
         self.resp_toolbar = FormatToolbar(trans_frame, self.trans_area, self)
         self.resp_toolbar.pack(fill="x", pady=(0,5))
-        self.trans_area.pack(fill="both", expand=True)
+        ttk.Label(trans_frame, text="").pack(pady=(0,2))
+        self.trans_area.pack(fill="both", expand=True, pady=(0,5))
 
         btn_frame_resp = ttk.Frame(trans_frame)
-        btn_frame_resp.pack(fill="x", pady=5)
-        ttk.Button(btn_frame_resp, text="✍️ Corrigir Resposta",
-                   style="Cyan.TButton", command=self.correct_translation).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame_resp, text="🗑️ Limpar",
-                   style="secondary", command=lambda: self.trans_area.delete(1.0, tk.END)).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame_resp, text="💾 Salvar Traduções",
-                   style="Cyan.TButton", command=self.save_translations).pack(side=tk.LEFT, padx=5)
+        btn_frame_resp.pack(fill="x", pady=10)
+        
+        # Correct button
+        btn_correct_resp = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.correct"),
+                                       style="Cyan.TButton", command=self.controller.correct_translation)
+        btn_correct_resp.pack(side=tk.LEFT, padx=6)
+        btn_correct_resp.i18n_key = "main_window.controls.buttons.correct"
+        ToolTip(btn_correct_resp, text_key="main_window.controls.buttons.correct_tooltip")
 
-        # ========== CONFIGURAÇÃO DAS TAGS ==========
+        # Save translations button
+        btn_save_translations = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.save_translations"),
+                                            style="Cyan.TButton", command=self.controller.save_translations)
+        btn_save_translations.pack(side=tk.LEFT, padx=6)
+        btn_save_translations.i18n_key = "main_window.controls.buttons.save_translations"
+        ToolTip(btn_save_translations, text_key="main_window.controls.buttons.save_translations_tooltip")
+
+        # Clear button
+        btn_clear_resp = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.clear"),
+                                     style="secondary", command=lambda: self.trans_area.delete(1.0, tk.END))
+        btn_clear_resp.pack(side=tk.LEFT, padx=6)
+        btn_clear_resp.i18n_key = "main_window.controls.buttons.clear"
+        ToolTip(btn_clear_resp, text_key="main_window.controls.buttons.clear_tooltip")
+
+        # Configure text tags (colors, fonts)
         self._configure_tags()
 
-        # ========== STATUS BAR ==========
+        # ========== STATUS BAR WITH VRAM INDICATOR ==========
+        status_frame = ttk.Frame(self.root)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
         self.status_var = tk.StringVar()
-        self.status_var.set("✅ Pronto.")
-        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=SUNKEN, anchor=W)
-        status_bar.pack(side=BOTTOM, fill=X)
-        ToolTip(status_bar, "Barra de status")
+        self.status_var.set(_("main_window.indicators.ready"))
+        status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        status_label.i18n_key = None
+        ToolTip(status_label, text_key="main_window.tooltips.status_bar")
+
+        # VRAM indicator label
+        self.vram_var = tk.StringVar()
+        self.vram_var.set("VRAM: ...")
+        vram_label = ttk.Label(status_frame, textvariable=self.vram_var, relief=tk.SUNKEN, anchor=tk.E, width=18)
+        vram_label.pack(side=tk.RIGHT, padx=2)
+        ToolTip(vram_label, "GPU memory usage (updated every 5s)")
+
+        # Indeterminate progress bar (packed below status frame)
+        self.progress_bar = tb.Progressbar(
+            self.root,
+            mode='indeterminate',
+            bootstyle="info-striped",
+            length=200
+        )
+        self.progress_bar.pack(side=tk.BOTTOM, pady=2)
+        self.progress_bar.pack_forget()  # initially hidden
+
+        # Pass UI references to the controller
+        self.controller.set_ui_refs(
+            text_area=self.text_area,
+            trans_area=self.trans_area,
+            btn_record=self.btn_record,
+            btn_deepseek=self.btn_deepseek,
+            rec_indicator=self.rec_indicator,
+            status_var=self.status_var,
+            progress_bar=self.progress_bar
+        )
+
+        logger.debug("UI setup completed")
 
     def _configure_tags(self):
+        """Configure text tags for formatting (bold, italic, colors, etc.)."""
         base_font = tkfont.Font(font=self.text_area.cget("font"))
         family = base_font.actual()["family"]
         size = base_font.actual()["size"]
         bold_font = (family, size, "bold")
         italic_font = (family, size, "italic")
         heading_font = (family, size+4, "bold")
+        normal_font = (family, size)
 
         for widget in [self.text_area, self.trans_area]:
+            widget.tag_configure("normal", font=normal_font)
             widget.tag_configure("bold", font=bold_font)
             widget.tag_configure("italic", font=italic_font)
             widget.tag_configure("underline", underline=True)
@@ -522,197 +341,80 @@ class TranscriptionStudio(dbus.service.Object):
                 widget.tag_configure(cor, foreground=cor)
 
     def setup_bindings(self):
+        """Set up keyboard bindings."""
         self.text_area.bind("<Return>", lambda e: handle_enter(e, self.text_area, self))
         self.trans_area.bind("<Return>", lambda e: handle_enter(e, self.trans_area, self))
 
     def check_microphone(self):
+        """Check if a microphone is available and show status."""
         import sounddevice as sd
         try:
             devices = sd.query_devices()
             input_devices = [d for d in devices if d["max_input_channels"] > 0]
             if not input_devices:
-                messagebox.showerror("Erro", "Nenhum dispositivo de entrada de áudio encontrado.")
+                logger.warning("No microphone found")
+                messagebox.showerror(
+                    _("dialogs.common.error"),
+                    _("main_window.status.no_microphone"),
+                    parent=self.root
+                )
             else:
-                self.status_var.set(f"🎤 Microfone OK. {len(input_devices)} dispositivo(s)")
+                self.status_var.set(_("main_window.status.microphone_ok", count=len(input_devices)))
+                logger.info(f"Microphone OK: {len(input_devices)} device(s) found")
         except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao acessar microfone: {e}")
+            logger.error(f"Microphone check failed: {e}")
+            messagebox.showerror(
+                _("dialogs.common.error"),
+                _("common.audio.error") + f": {e}",
+                parent=self.root
+            )
 
-    def start_recording(self):
-        if not self.load_model():
-            return
-        self.recorder = AudioRecorder(samplerate=config.SAMPLE_RATE, channels=config.CHANNELS)
-        self.text_area.delete(1.0, tk.END)
-        self.trans_area.delete(1.0, tk.END)
-        self.is_recording = True
-        self.recorder.start()
-        self.btn_record.config(text="⏹ PARAR GRAVAÇÃO", style="success.TButton")
-        self.btn_deepseek.config(state="disabled")
-        self.rec_indicator.config(text="🔴 GRAVANDO...", bg="#8b0000", fg="white")
-        self.status_var.set("🔴 Gravando...")
+    def update_vram_display(self):
+        """Update the VRAM indicator label."""
+        usage = self.controller.get_gpu_memory_usage()
+        self.vram_var.set(usage)
+        self.root.after(5000, self.update_vram_display)  # update every 5 seconds
 
-    def stop_and_transcribe(self):
-        self.is_recording = False
-        audio = self.recorder.stop()
-        self.btn_record.config(text="▶ INICIAR GRAVAÇÃO", style="Pink.TButton")
-        self.rec_indicator.config(text="⏹ PARADO", bg="#404040", fg="#888888")
-        self.status_var.set("⏳ Transcrevendo...")
+    # ==================== DELEGATED METHODS (FOR TRAY ICON) ====================
 
-        if audio.size == 0:
-            messagebox.showwarning("Aviso", "Nenhum áudio gravado.")
-            self.status_var.set("⚠️ Nada gravado.")
-            return
+    def show_window(self):
+        """Show the main window and bring it to front."""
+        logger.debug("Showing main window")
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        if self.controller.deepseek_window and self.controller.deepseek_window.window.winfo_exists():
+            self.controller.deepseek_window.show_window()
 
-        def transcribe_task():
-            try:
-                text = self.transcriber.transcribe(audio, language=self.current_language.get())
-                if text.startswith("[Erro:") or text.startswith("❌") or "áudio muito baixo" in text.lower():
-                    self.root.after(0, lambda: messagebox.showerror("Erro na transcrição", text))
-                    return
-                self.root.after(0, lambda: self.display_transcription(text))
-            except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror("Erro", f"Falha na transcrição: {e}"))
-                self.root.after(0, lambda: self.status_var.set("❌ Erro na transcrição."))
+    def hide_window(self):
+        """Hide the main window (minimize to tray)."""
+        logger.debug("Hiding main window")
+        self.root.withdraw()
+        self.show_notification(
+            _("tray.notifications.app_minimized"),
+            _("tray.notifications.app_minimized_msg")
+        )
 
-        threading.Thread(target=transcribe_task, daemon=True).start()
+    def quit_app(self):
+        """Quit the application."""
+        logger.info("Quit requested from tray")
+        self.controller.quit_app()
 
-    def display_transcription(self, text):
-        self.text_area.insert(tk.END, text + "\n")
-        self.status_var.set("✅ Transcrição concluída.")
-        self.btn_deepseek.config(state="normal")
-        self.show_notification("Transcrição concluída", "O áudio foi transcrito.")
-
-    def correct_transcription(self):
-        text = self.text_area.get(1.0, tk.END).strip()
-        if not text:
-            messagebox.showinfo("Info", "Nada para corrigir.")
-            return
-        show_correction_dialog(self.root, "Correção da Transcrição", text,
-                               lambda new: self.text_area.delete(1.0, tk.END) or self.text_area.insert(tk.END, new),
-                               self.current_language.get())
-
-    def correct_translation(self):
-        text = self.trans_area.get(1.0, tk.END).strip()
-        if not text:
-            messagebox.showinfo("Info", "Nada para corrigir.")
-            return
-        show_correction_dialog(self.root, "Correção da Resposta", text,
-                               lambda new: self.trans_area.delete(1.0, tk.END) or self.trans_area.insert(tk.END, new),
-                               "en")
-
-    # ---------- Métodos de tradução ----------
-    def insert_translation(self, lang_name, text):
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        prefix = f"[{timestamp}] [{lang_name}] "
-
-        color_map = {
-            "Inglês": "blue", "Espanhol": "red", "Francês": "green",
-            "Alemão": "orange", "Italiano": "purple", "Chinês": "brown",
-            "Japonês": "darkred", "Coreano": "darkgreen"
-        }
-        cor = color_map.get(lang_name, "white")
-        tag_name = f"lang_{lang_name}"
+    def show_notification(self, title, message):
+        """Send a desktop notification."""
         try:
-            self.trans_area.tag_configure(tag_name, foreground=cor)
-        except:
-            pass
+            import subprocess
+            subprocess.run(['notify-send', title, message])
+            logger.debug(f"Notification sent: {title}")
+        except Exception as e:
+            logger.error(f"Failed to send notification: {e}")
 
-        start = self.trans_area.index("end-1c")
-        self.trans_area.insert(tk.END, prefix + text + "\n\n")
-        end = self.trans_area.index("end-1c")
-        self.trans_area.tag_add(tag_name, start, end)
-        self.trans_area.see(tk.END)
-
-    def translate_text(self):
-        print("🔵 translate_text chamado (interface)")
-        text = self.text_area.get(1.0, tk.END).strip()
-        print(f"🔵 Texto a traduzir: '{text}'")
-        if not text:
-            messagebox.showinfo("Info", "Nada para traduzir.")
-            return
-        self.status_var.set("⏳ Traduzindo...")
-        self.root.update()
-        target = self.translate_target.get()
-        lang_name = self.all_language_names.get(target, target.upper())
-        print(f"🔵 Idioma destino: {target} ({lang_name})")
-
-        def task():
-            try:
-                print("🟠 Iniciando thread de tradução (Hunyuan)")
-                if self.translator is None or self.translator.target_lang != target:
-                    self.translator = Translator(
-                        source_lang=self.current_language.get(),
-                        target_lang=target,
-                        device=self.device.get()
-                    )
-                translated = self.translator.translate(text)
-                print(f"🟠 Tradução obtida: '{translated}'")
-                self.root.after(0, lambda: self.insert_translation(lang_name, translated))
-                self.root.after(0, lambda: self.status_var.set("✅ Tradução concluída."))
-            except Exception as e:
-                print(f"❌ Erro na thread de tradução: {e}")
-                traceback.print_exc()
-                self.root.after(0, lambda: messagebox.showerror("Erro", f"Falha na tradução: {e}"))
-                self.root.after(0, lambda: self.status_var.set("❌ Erro na tradução."))
-
-        threading.Thread(target=task, daemon=True).start()
-
-    def translate_all(self):
-        text = self.text_area.get(1.0, tk.END).strip()
-        if not text:
-            messagebox.showinfo("Info", "Nada para traduzir.")
-            return
-        self.status_var.set("⏳ Traduzindo para todos...")
-        self.root.update()
-        source = self.current_language.get()
-        targets = self.all_languages
-
-        def task():
-            for target in targets:
-                try:
-                    translator = Translator(
-                        source_lang=source,
-                        target_lang=target,
-                        device=self.device.get()
-                    )
-                    translated = translator.translate(text)
-                    lang_name = self.all_language_names.get(target, target.upper())
-                    self.root.after(0, lambda l=lang_name, t=translated: self.insert_translation(l, t))
-                except Exception as e:
-                    self.root.after(0, lambda: self.insert_translation(f"Erro ({target})", str(e)))
-            self.root.after(0, lambda: self.status_var.set("✅ Traduções concluídas."))
-
-        threading.Thread(target=task, daemon=True).start()
-
-    # ---------- Salvar ----------
-    def save_transcription(self):
-        print("🔵 save_transcription chamado (interface)")
-        text = self.text_area.get(1.0, tk.END).strip()
-        print(f"🔵 save_transcription: texto presente? {bool(text)}")
-        if not text:
-            messagebox.showinfo("Info", "Nada para salvar.")
-            return
-        from datetime import datetime
-        filename = f"transcricao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        filepath = Path(__file__).parent.parent / "transcricoes" / filename
-        filepath.parent.mkdir(exist_ok=True)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(text)
-        messagebox.showinfo("Sucesso", f"Transcrição salva em:\n{filepath}")
-
-    def save_translations(self):
-        print("🔵 save_translations chamado")
-        text = self.trans_area.get(1.0, tk.END).strip()
-        if not text:
-            messagebox.showinfo("Info", "Nada para salvar.")
-            return
-        from datetime import datetime
-        filename = f"traducoes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        filepath = Path(__file__).parent.parent / "transcricoes" / filename
-        filepath.parent.mkdir(exist_ok=True)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(text)
-        messagebox.showinfo("Sucesso", f"Traduções salvas em:\n{filepath}")
-
-    def __del__(self):
-        self.unload_models()
+    def on_closing(self):
+        """Handle window close button: ask whether to exit or minimize to tray."""
+        from frontend.dialogs import show_close_dialog
+        choice = show_close_dialog(self.root)
+        if choice == 'minimize':
+            self.hide_window()
+        elif choice == 'exit':
+            self.quit_app()
+        # else: cancel, não faz nada
