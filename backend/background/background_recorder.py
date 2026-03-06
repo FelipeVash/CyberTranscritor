@@ -1,31 +1,74 @@
 # backend/background/background_recorder.py
+"""
+Background recording module.
+Handles audio capture when the application is minimized (triggered by Super+0).
+Detects silence, transcribes, and queries DeepSeek.
+Results are shown as notifications or by opening the DeepSeek window.
+"""
+
 import threading
+import numpy as np
 from backend.audio.recorder import AudioRecorder
+from backend.services.transcription_service import TranscriptionService, TranscriptionError
+from backend.services.translation_service import TranslationService
+from backend.deepseek_client import DeepSeekClient
+from utils.i18n import _
+from utils.logger import logger
 import config
+import traceback
 
 class BackgroundRecorder:
+    """
+    Manages background recording (activated by Super+0).
+    Captures audio, detects silence, transcribes, and queries DeepSeek.
+    The result is displayed as a notification or by opening the DeepSeek window.
+    """
+
     def __init__(self, controller):
+        """
+        Initialize the background recorder.
+
+        Args:
+            controller: Reference to the AppController (to access UI and services)
+        """
         self.controller = controller
         self.recording = False
         self.recorder = None
         self.timer = None
+        self.silence_timeout = 5  # seconds of silence to stop
+        self.audio_buffer = []
 
     def start(self):
+        """Start background recording."""
         if self.recording:
+            logger.warning("Background recording already in progress")
             return
+        logger.info("Starting background recording")
         self.recording = True
+        self.audio_buffer = []
         self.recorder = AudioRecorder(
             samplerate=config.SAMPLE_RATE,
             channels=config.CHANNELS,
-            callback=self.on_audio_chunk
+            blocksize=1600,
+            callback=self._on_audio_chunk
         )
         self.recorder.start()
-        self.controller.show_notification("🎤 Gravação iniciada", "Fale agora. Pressione Super+0 novamente para parar.")
-        self.reset_timer()
+        self.controller.show_notification(
+            _("tray.notifications.background_start_title"),
+            _("tray.notifications.background_start")
+        )
+        self._reset_timer()
 
     def stop(self, from_timer=False):
+        """
+        Stop recording and process the captured audio.
+
+        Args:
+            from_timer: True if called by silence timeout, False if called manually
+        """
         if not self.recording:
             return
+        logger.info("Stopping background recording")
         self.recording = False
         if self.timer:
             self.timer.cancel()
@@ -33,23 +76,77 @@ class BackgroundRecorder:
         audio = self.recorder.stop()
         if audio.size == 0:
             if from_timer:
-                self.controller.show_notification("Nada gravado", "Tempo limite de silêncio atingido.")
+                self.controller.show_notification(
+                    _("tray.notifications.background_timeout_title"),
+                    _("tray.notifications.background_timeout")
+                )
             else:
-                self.controller.show_notification("Nada gravado", "Nenhum áudio detectado.")
+                self.controller.show_notification(
+                    _("tray.notifications.background_no_audio_title"),
+                    _("tray.notifications.background_no_audio")
+                )
             return
-        self.controller.show_notification("⏳ Processando", "Transcrevendo e consultando DeepSeek...")
-        self.process_audio(audio)
+        self.controller.show_notification(
+            _("tray.notifications.background_processing_title"),
+            _("tray.notifications.background_processing")
+        )
+        self._process_audio(audio)
 
-    def on_audio_chunk(self, chunk):
-        self.reset_timer()
+    def _on_audio_chunk(self, chunk):
+        """Callback called for each audio chunk."""
+        self.audio_buffer.append(chunk)
+        self._reset_timer()
 
-    def reset_timer(self):
+    def _reset_timer(self):
+        """Reset the silence timer."""
         if self.timer:
             self.timer.cancel()
-        self.timer = threading.Timer(5.0, lambda: self.stop(from_timer=True))
+        self.timer = threading.Timer(self.silence_timeout, lambda: self.stop(from_timer=True))
+        self.timer.daemon = True
         self.timer.start()
 
-    def process_audio(self, audio):
-        # Aqui você pode implementar a lógica de processamento em background
-        # Por enquanto, apenas notifica
-        self.controller.show_notification("Background", "Áudio capturado, mas processamento não implementado.")
+    def _process_audio(self, audio):
+        """
+        Process the audio: transcribe and query DeepSeek.
+        If the response is short, show a notification; otherwise open the DeepSeek window.
+        """
+        def task():
+            try:
+                # Transcribe audio
+                transcriber = self.controller.transcriber  # uses the controller's transcriber
+                logger.debug("Transcribing background audio")
+                text = transcriber.transcribe(audio, language=self.controller.current_language.get())
+                if text.startswith("[Erro:") or text.startswith("❌") or "áudio muito baixo" in text.lower():
+                    self.controller.root.after(0, lambda: self.controller.show_error(
+                        _("dialogs.common.error"),
+                        text
+                    ))
+                    return
+
+                # Query DeepSeek
+                logger.debug("Querying DeepSeek with transcribed text")
+                client = DeepSeekClient()
+                resposta = client.ask(text, opt_out=True)
+
+                # Decide how to present the response
+                if len(resposta) < 300 and '```' not in resposta and '    ' not in resposta:
+                    # Short response: show as notification
+                    self.controller.root.after(0, lambda: self.controller.show_notification(
+                        _("tray.notifications.deepseek_response_title"),
+                        resposta[:200] + ("..." if len(resposta) > 200 else "")
+                    ))
+                    # Optionally speak the response via TTS
+                    if self.controller.tts_engine:
+                        threading.Thread(target=self.controller.tts_engine.speak, args=(resposta,), daemon=True).start()
+                else:
+                    # Long response: open DeepSeek window with context
+                    self.controller.root.after(0, lambda: self.controller.open_deepseek_with_context(text, resposta))
+            except Exception as e:
+                logger.error(f"Error processing background audio: {e}")
+                traceback.print_exc()
+                self.controller.root.after(0, lambda: self.controller.show_error(
+                    _("dialogs.common.error"),
+                    str(e)
+                ))
+
+        threading.Thread(target=task, daemon=True).start()

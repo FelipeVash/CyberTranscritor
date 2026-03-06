@@ -27,9 +27,9 @@
         "correct": "✍️ Corrigir",
         "correct_tooltip": "Corrigir gramática da transcrição (Super+4)",
         "clear": "🗑️ Limpar",
-        "clear_tooltip": "Limpar a área de texto",
+        "clear_tooltip": "Limpar área de transcrição",
         "save_translations": "💾 Salvar Traduções",
-        "save_translations_tooltip": "Salvar todas as traduções em arquivo"
+        "save_translations_tooltip": "Salvar todas as traduções em um arquivo"
       }
     },
     "format_toolbar": {
@@ -190,10 +190,15 @@
       "recording_stopped": "⏹️ Gravação finalizada",
       "transcription_ready": "Transcrição pronta",
       "transcription_saved": "Transcrição salva: {filename}",
+      "background_start_title": "🎤 Gravação em segundo plano",
       "background_start": "Fale agora. Pressione Super+0 novamente para parar.",
+      "background_timeout_title": "⏹️ Tempo limite",
       "background_timeout": "Tempo limite de silêncio atingido.",
+      "background_no_audio_title": "⚠️ Nada gravado",
       "background_no_audio": "Nenhum áudio detectado.",
-      "background_processing": "⏳ Processando",
+      "background_processing_title": "⏳ Processando",
+      "background_processing": "Transcrevendo e consultando DeepSeek...",
+      "deepseek_response_title": "🤖 Resposta do DeepSeek",
       "app_minimized": "Aplicativo minimizado",
       "app_minimized_msg": "O programa continua em segundo plano.",
       "language_changed_title": "Idioma alterado",
@@ -225,7 +230,6 @@
       "type_here": "Digite aqui..."
     },
     "languages": {
-      "pt-br": "Português (Brasil)",
       "pt": "Português",
       "en": "Inglês",
       "es": "Espanhol",

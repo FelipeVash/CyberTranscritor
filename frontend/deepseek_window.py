@@ -1,4 +1,9 @@
 # frontend/deepseek_window.py
+"""
+DeepSeek chat window.
+Allows voice or text queries to DeepSeek, with options for web search and TTS.
+"""
+
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 import ttkbootstrap as tb
@@ -22,10 +27,25 @@ from backend.corrector import correct_text
 import config
 from utils.tooltip import ToolTip
 from utils.i18n import _
+from utils.logger import logger
 
 class DeepSeekWindow:
+    """
+    DeepSeek chat window with audio recording, TTS, and web search integration.
+    """
+
     def __init__(self, parent, main_app, initial_prompt=None, initial_response=None, audio_player=None):
-        print("🟢 DeepSeekWindow: iniciando __init__")
+        """
+        Initialize the DeepSeek window.
+
+        Args:
+            parent: parent tkinter window
+            main_app: reference to the main application (controller)
+            initial_prompt: optional pre-filled user prompt
+            initial_response: optional pre-filled assistant response
+            audio_player: shared AudioPlayer instance for centralized playback control
+        """
+        logger.info("Initializing DeepSeekWindow")
         self.parent = parent
         self.main_app = main_app
         self.audio_player = audio_player
@@ -41,17 +61,17 @@ class DeepSeekWindow:
                 device="cpu",
                 audio_player=self.audio_player
             )
-            print("✅ TTS Engine (Piper) inicializado com AudioPlayer")
+            logger.info("TTS Engine (Piper) initialized with AudioPlayer")
         except Exception as e:
-            print(f"⚠️ Erro ao inicializar TTS: {e}")
+            logger.error(f"Failed to initialize TTS: {e}")
             traceback.print_exc()
 
         self.web_search = None
         try:
             self.web_search = WebSearch()
-            print("✅ WebSearch inicializado")
+            logger.info("WebSearch initialized")
         except Exception as e:
-            print(f"⚠️ Erro ao inicializar WebSearch: {e}")
+            logger.error(f"Failed to initialize WebSearch: {e}")
 
         self.window = None
         self.is_recording = False
@@ -70,9 +90,9 @@ class DeepSeekWindow:
             self.setup_bindings()
             if initial_prompt:
                 self.send_to_deepseek(initial_prompt, initial_response)
-            print("🟢 DeepSeekWindow: inicialização concluída")
+            logger.info("DeepSeekWindow initialization completed")
         except Exception as e:
-            print(f"❌ Erro ao configurar janela DeepSeek: {e}")
+            logger.error(f"Error setting up DeepSeek window: {e}")
             traceback.print_exc()
             messagebox.showerror(
                 _("dialogs.common.error"),
@@ -81,16 +101,18 @@ class DeepSeekWindow:
             )
 
     def setup_ui(self):
-        print("🔵 setup_ui: criando janela Toplevel")
+        """Create and arrange all UI widgets."""
+        logger.debug("Setting up DeepSeek window UI")
         self.window = tb.Toplevel(self.parent)
         self.window.title(_("deepseek_window.title"))
         self.window.geometry("900x1100")
         self.window.focus_force()
-        print("🔵 setup_ui: janela criada")
 
+        # Control buttons frame
         control_frame = ttk.Frame(self.window)
         control_frame.pack(fill="x", padx=10, pady=5)
 
+        # Record button
         self.btn_record = ttk.Button(
             control_frame,
             text=_("deepseek_window.controls.record"),
@@ -100,8 +122,9 @@ class DeepSeekWindow:
         )
         self.btn_record.pack(side=tk.LEFT, padx=2)
         self.btn_record.i18n_key = "deepseek_window.controls.record"
-        ToolTip(self.btn_record, _("deepseek_window.controls.record_tooltip"))
+        ToolTip(self.btn_record, text_key="deepseek_window.controls.record_tooltip")
 
+        # Send text button
         self.btn_send = ttk.Button(
             control_frame,
             text=_("deepseek_window.controls.send_text"),
@@ -111,8 +134,9 @@ class DeepSeekWindow:
         )
         self.btn_send.pack(side=tk.LEFT, padx=2)
         self.btn_send.i18n_key = "deepseek_window.controls.send_text"
-        ToolTip(self.btn_send, _("deepseek_window.controls.send_tooltip"))
+        ToolTip(self.btn_send, text_key="deepseek_window.controls.send_tooltip")
 
+        # Stop audio button
         self.btn_stop_audio = ttk.Button(
             control_frame,
             text=_("deepseek_window.controls.stop_audio"),
@@ -122,8 +146,9 @@ class DeepSeekWindow:
         )
         self.btn_stop_audio.pack(side=tk.LEFT, padx=2)
         self.btn_stop_audio.i18n_key = "deepseek_window.controls.stop_audio"
-        ToolTip(self.btn_stop_audio, _("deepseek_window.controls.stop_audio_tooltip"))
+        ToolTip(self.btn_stop_audio, text_key="deepseek_window.controls.stop_audio_tooltip")
 
+        # TTS button
         if self.tts_engine:
             self.btn_tts = ttk.Button(
                 control_frame,
@@ -134,7 +159,7 @@ class DeepSeekWindow:
             )
             self.btn_tts.pack(side=tk.LEFT, padx=2)
             self.btn_tts.i18n_key = "deepseek_window.controls.listen"
-            ToolTip(self.btn_tts, _("deepseek_window.controls.listen_tooltip"))
+            ToolTip(self.btn_tts, text_key="deepseek_window.controls.listen_tooltip")
         else:
             self.btn_tts = ttk.Button(
                 control_frame,
@@ -145,8 +170,9 @@ class DeepSeekWindow:
             )
             self.btn_tts.pack(side=tk.LEFT, padx=2)
             self.btn_tts.i18n_key = "deepseek_window.controls.tts_unavailable"
-            ToolTip(self.btn_tts, _("deepseek_window.controls.tts_unavailable"))
+            ToolTip(self.btn_tts, text_key="deepseek_window.controls.tts_unavailable")
 
+        # Status label
         self.status_label = tk.Label(
             control_frame,
             text=_("deepseek_window.labels.status_idle"),
@@ -155,11 +181,12 @@ class DeepSeekWindow:
         self.status_label.pack(side=tk.RIGHT, padx=5)
         self.status_label.i18n_key = "deepseek_window.labels.status_idle"
 
-        # Frame de opções
-        options_frame = ttk.LabelFrame(self.window, text="⚙️ Opções de Consulta", padding=5)
+        # Options frame
+        options_frame = ttk.LabelFrame(self.window, text=_("deepseek_window.options_frame"), padding=5)
         options_frame.pack(fill="x", padx=10, pady=5)
-        options_frame.i18n_key = "deepseek_window.options_frame"  # se existir no JSON
+        options_frame.i18n_key = "deepseek_window.options_frame"
 
+        # Deep Think checkbox
         chk_think = ttk.Checkbutton(
             options_frame,
             text=_("deepseek_window.options.thinking"),
@@ -168,8 +195,9 @@ class DeepSeekWindow:
         )
         chk_think.pack(side=tk.LEFT, padx=5)
         chk_think.i18n_key = "deepseek_window.options.thinking"
-        ToolTip(chk_think, _("deepseek_window.options.thinking_tooltip"))
+        ToolTip(chk_think, text_key="deepseek_window.options.thinking_tooltip")
 
+        # Web search checkbox
         chk_web = ttk.Checkbutton(
             options_frame,
             text=_("deepseek_window.options.web_search"),
@@ -178,8 +206,9 @@ class DeepSeekWindow:
         )
         chk_web.pack(side=tk.LEFT, padx=5)
         chk_web.i18n_key = "deepseek_window.options.web_search"
-        ToolTip(chk_web, _("deepseek_window.options.web_search_tooltip"))
+        ToolTip(chk_web, text_key="deepseek_window.options.web_search_tooltip")
 
+        # Correction checkbox
         chk_correct = ttk.Checkbutton(
             options_frame,
             text=_("deepseek_window.options.correction"),
@@ -188,9 +217,9 @@ class DeepSeekWindow:
         )
         chk_correct.pack(side=tk.LEFT, padx=5)
         chk_correct.i18n_key = "deepseek_window.options.correction"
-        ToolTip(chk_correct, _("deepseek_window.options.correction_tooltip"))
+        ToolTip(chk_correct, text_key="deepseek_window.options.correction_tooltip")
 
-        # Histórico
+        # History area
         hist_frame = ttk.LabelFrame(self.window, text=_("deepseek_window.labels.history"), padding=10)
         hist_frame.pack(fill="both", expand=True, padx=10, pady=5)
         hist_frame.i18n_key = "deepseek_window.labels.history"
@@ -205,7 +234,7 @@ class DeepSeekWindow:
         )
         self.hist_area.pack(fill="both", expand=True)
 
-        # Entrada de texto
+        # Input area
         input_frame = ttk.LabelFrame(self.window, text=_("deepseek_window.labels.input"), padding=10)
         input_frame.pack(fill="x", padx=10, pady=5)
         input_frame.i18n_key = "deepseek_window.labels.input"
@@ -220,9 +249,9 @@ class DeepSeekWindow:
         )
         self.input_area.pack(fill="x", padx=5, pady=5)
 
+        # Send button inside input frame
         btn_frame = ttk.Frame(input_frame)
         btn_frame.pack(fill="x", pady=5)
-
         send_btn = ttk.Button(
             btn_frame,
             text=_("deepseek_window.controls.send_text"),
@@ -232,6 +261,7 @@ class DeepSeekWindow:
         send_btn.pack(side=tk.RIGHT, padx=5)
         send_btn.i18n_key = "deepseek_window.controls.send_text"
 
+        # Hint label
         dica = tk.Label(
             input_frame,
             text=_("deepseek_window.labels.hint"),
@@ -241,35 +271,36 @@ class DeepSeekWindow:
         )
         dica.pack(pady=2)
         dica.i18n_key = "deepseek_window.labels.hint"
-        print("🔵 setup_ui: concluído")
 
-        # Configura o protocolo de fechamento
+        # Set close protocol
         self.window.protocol("WM_DELETE_WINDOW", self.destroy)
+        logger.debug("DeepSeek window UI setup complete")
 
     def setup_bindings(self):
-        print("🟡 setup_bindings: configurando atalhos")
+        """Set up keyboard shortcuts and bindings."""
+        logger.debug("Setting up bindings")
         self.input_area.bind("<Return>", self.on_enter_press)
         self.input_area.bind("<Shift-Return>", self.on_shift_enter)
         self.window.bind("<Escape>", lambda e: self.destroy())
         self.window.bind("<Control-r>", lambda e: self.toggle_recording())
         self.window.bind("<Control-R>", lambda e: self.toggle_recording())
-        print("🟡 setup_bindings: concluído")
 
     def hide_window(self):
-        """Oculta a janela (não destrói). Usado para minimizar para a bandeja."""
-        print("🔻 Ocultando janela DeepSeek")
+        """Hide the window (minimize to tray)."""
+        logger.debug("Hiding DeepSeek window")
         self.stop_audio()
         self.window.withdraw()
 
     def show_window(self):
-        """Exibe a janela e traz para frente."""
+        """Show and bring the window to front."""
+        logger.debug("Showing DeepSeek window")
         self.window.deiconify()
         self.window.lift()
         self.window.focus_force()
 
     def destroy(self):
-        """Destrói a janela e libera recursos."""
-        print("🔻 Destruindo janela DeepSeek")
+        """Destroy the window and release resources."""
+        logger.info("Destroying DeepSeek window")
         self.stop_audio()
         if self.tts_engine:
             self.tts_engine.unload_model()
@@ -277,27 +308,32 @@ class DeepSeekWindow:
             self.window.destroy()
 
     def stop_audio(self):
-        """Para a reprodução de áudio via TTS (que usa o AudioPlayer)."""
+        """Stop audio playback via TTS (which uses the AudioPlayer)."""
         if self.tts_engine:
             self.tts_engine.stop()
         if self.main_app and hasattr(self.main_app, 'stop_all_audio'):
             self.main_app.stop_all_audio()
 
     def on_enter_press(self, event):
+        """Handle Enter key: send text."""
         self.send_text()
         return "break"
 
     def on_shift_enter(self, event):
+        """Handle Shift+Enter: insert newline."""
         self.input_area.insert(tk.INSERT, "\n")
         return "break"
 
     def toggle_recording(self):
+        """Toggle audio recording on/off."""
         if not self.is_recording:
             self.start_recording()
         else:
             self.stop_and_send()
 
     def start_recording(self):
+        """Start recording audio."""
+        logger.info("Starting audio recording in DeepSeek window")
         self.recorder = AudioRecorder(samplerate=config.SAMPLE_RATE, channels=config.CHANNELS)
         self.is_recording = True
         self.recorder.start()
@@ -307,6 +343,8 @@ class DeepSeekWindow:
         self.status_label.i18n_key = "deepseek_window.labels.status_recording"
 
     def stop_and_send(self):
+        """Stop recording and send the transcribed text to DeepSeek."""
+        logger.info("Stopping recording and sending")
         self.is_recording = False
         audio = self.recorder.stop()
         self.btn_record.config(text=_("deepseek_window.controls.record"), style="Pink.TButton")
@@ -315,6 +353,7 @@ class DeepSeekWindow:
         self.status_label.i18n_key = "deepseek_window.labels.status_transcribing"
 
         if audio.size == 0:
+            logger.warning("No audio recorded")
             messagebox.showwarning(
                 _("dialogs.common.warning"),
                 _("deepseek_window.messages.no_audio"),
@@ -331,6 +370,7 @@ class DeepSeekWindow:
                     device=self.main_app.device.get() if self.main_app else "cuda"
                 )
             except Exception as e:
+                logger.error(f"Failed to create transcriber: {e}")
                 messagebox.showerror(
                     _("dialogs.common.error"),
                     _("deepseek_window.messages.transcription_error") + f": {e}",
@@ -359,11 +399,12 @@ class DeepSeekWindow:
                     return
 
                 if self.enable_correction.get():
-                    print("✍️ Aplicando correção gramatical...")
+                    logger.debug("Applying grammar correction")
                     text = correct_text(text, lang)
 
                 self.window.after(0, lambda: self.send_to_deepseek(text))
             except Exception as e:
+                logger.error(f"Error in transcription task: {e}")
                 self.window.after(0, lambda: messagebox.showerror(
                     _("dialogs.common.error"),
                     _("deepseek_window.messages.deepseek_error", error=str(e)),
@@ -378,6 +419,7 @@ class DeepSeekWindow:
         threading.Thread(target=transcribe_task, daemon=True).start()
 
     def send_text(self):
+        """Send the text from the input area to DeepSeek."""
         text = self.input_area.get(1.0, tk.END).strip()
         if not text:
             messagebox.showinfo(
@@ -386,6 +428,7 @@ class DeepSeekWindow:
                 parent=self.window
             )
             return
+        logger.debug(f"Sending text: {text[:50]}...")
         self.input_area.delete(1.0, tk.END)
         if self.enable_correction.get():
             lang = self.main_app.current_language.get() if self.main_app else "pt"
@@ -393,10 +436,18 @@ class DeepSeekWindow:
         self.send_to_deepseek(text)
 
     def send_to_deepseek(self, text, pre_response=None):
+        """
+        Send a query to DeepSeek.
+
+        Args:
+            text: user prompt
+            pre_response: optional pre-loaded response (bypasses API)
+        """
         if self.deepseek_client is None:
             try:
                 self.deepseek_client = DeepSeekClient()
             except Exception as e:
+                logger.error(f"Failed to initialize DeepSeek client: {e}")
                 messagebox.showerror(
                     _("dialogs.common.error"),
                     _("deepseek_window.messages.deepseek_error", error=str(e)),
@@ -408,6 +459,7 @@ class DeepSeekWindow:
         self._add_to_history("user", text, timestamp)
 
         if pre_response:
+            logger.debug("Using pre-loaded response")
             self.last_response = pre_response
             self._add_to_history("assistant", pre_response, timestamp)
             self.status_label.config(text=_("deepseek_window.labels.status_preloaded"), fg="green")
@@ -422,15 +474,16 @@ class DeepSeekWindow:
             try:
                 web_results = None
                 if self.enable_web_search.get() and self.web_search:
-                    print("🌐 Buscando na internet...")
+                    logger.debug("Performing web search")
                     web_results = asyncio.run(self.web_search.search(text, max_results=3))
                     if web_results:
-                        print(f"✅ Encontrados {len(web_results)} resultados")
+                        logger.info(f"Web search returned {len(web_results)} results")
 
+                # Build prompt using internationalized templates
                 if web_results:
                     results_text = ""
                     for i, res in enumerate(web_results, 1):
-                        results_text += f"\n{i}. {res.get('title', '')}\n   {res.get('snippet', '')}\n   Fonte: {res.get('url', '')}\n"
+                        results_text += f"\n{i}. {res.get('title', '')}\n   {res.get('snippet', '')}\n   Source: {res.get('url', '')}\n"
                     enhanced_prompt = _("prompts.deepseek_user_with_web", text=text, web_results=results_text)
                 else:
                     enhanced_prompt = _("prompts.deepseek_user", text=text)
@@ -438,16 +491,16 @@ class DeepSeekWindow:
                 if self.enable_thinking.get():
                     enhanced_prompt = _("prompts.thinking_prefix") + "\n\n" + enhanced_prompt
 
-                resposta = self.deepseek_client.ask(
+                response = self.deepseek_client.ask(
                     enhanced_prompt,
                     system_prompt=_("prompts.deepseek_system"),
                     opt_out=True,
                     enable_thinking=False
                 )
-                self.last_response = resposta
+                self.last_response = response
                 self.window.after(0, lambda: self._add_to_history(
                     "assistant",
-                    resposta,
+                    response,
                     datetime.now().strftime("%H:%M:%S")
                 ))
                 self.window.after(0, lambda: self.status_label.config(
@@ -455,8 +508,9 @@ class DeepSeekWindow:
                     fg="green"
                 ))
                 self.window.after(0, lambda: setattr(self.status_label, 'i18n_key', "deepseek_window.labels.status_response"))
-                self.window.after(0, lambda: self._auto_play_response(resposta))
+                self.window.after(0, lambda: self._auto_play_response(response))
             except Exception as e:
+                logger.error(f"DeepSeek query failed: {e}")
                 self.window.after(0, lambda: messagebox.showerror(
                     _("dialogs.common.error"),
                     _("deepseek_window.messages.deepseek_error", error=str(e)),
@@ -471,15 +525,17 @@ class DeepSeekWindow:
         threading.Thread(target=task, daemon=True).start()
 
     def _auto_play_response(self, text):
+        """Automatically play response if it doesn't contain code blocks."""
         if not self.tts_engine:
             return
         if '```' in text:
-            print("🔇 Resposta contém código, não reproduzindo automaticamente.")
+            logger.debug("Response contains code, skipping auto-play")
             return
-        print("🔊 Auto-play ativado")
+        logger.info("Auto-playing response")
         self.play_response(text)
 
     def play_last_response(self):
+        """Play the last assistant response via TTS."""
         if not self.tts_engine:
             messagebox.showerror(
                 _("dialogs.common.error"),
@@ -494,22 +550,25 @@ class DeepSeekWindow:
                 parent=self.window
             )
             return
-        print("🔊 Reproduzindo última resposta")
+        logger.info("Playing last response")
         self.play_response(self.last_response)
 
     def play_response(self, text):
-        """Reproduz uma resposta usando TTS (que por usa vez usa o AudioPlayer)."""
+        """Synthesize and play text using TTS."""
         file_path = self.tts_engine.synthesize(text)
         if file_path:
             self.tts_engine.play_audio(file_path)
 
     def show_notification(self, title, message):
+        """Send a desktop notification."""
         try:
             subprocess.run(['notify-send', title, message])
+            logger.debug(f"Notification sent: {title}")
         except Exception as e:
-            print(f"Erro na notificação: {e}")
+            logger.error(f"Failed to send notification: {e}")
 
     def _add_to_history(self, role, content, timestamp):
+        """Add a message to the chat history display."""
         self.hist_area.config(state=tk.NORMAL)
         if role == "user":
             prefix = _("deepseek_window.history.user_prefix", timestamp=timestamp)

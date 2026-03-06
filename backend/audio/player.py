@@ -1,17 +1,35 @@
 # backend/audio/player.py
+"""
+Audio playback module using ffplay.
+Manages a single playback process and allows stopping.
+All logging is done through the centralized logger.
+"""
+
 import subprocess
 import os
 import signal
 import threading
+from utils.logger import logger
 
 class AudioPlayer:
-    """Gerencia reprodução de áudio com ffplay."""
+    """
+    Simple audio player that uses ffplay to play WAV files.
+    Only one playback can be active at a time.
+    """
+
     def __init__(self):
+        """Initialize the player with no active process."""
         self.current_process = None
         self.lock = threading.RLock()
+        logger.debug("AudioPlayer initialized")
 
     def play(self, file_path):
-        """Reproduz um arquivo de áudio, parando qualquer reprodução anterior."""
+        """
+        Play a WAV file, stopping any currently playing audio.
+
+        Args:
+            file_path: Path to the WAV file
+        """
         with self.lock:
             self.stop()
             try:
@@ -19,20 +37,22 @@ class AudioPlayer:
                     ['ffplay', '-nodisp', '-autoexit', file_path],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    preexec_fn=os.setsid
+                    preexec_fn=os.setsid  # Create a new process group
                 )
-                print(f"▶ Reprodução iniciada: PID {self.current_process.pid}")
+                logger.info(f"Started playback: PID {self.current_process.pid}")
             except Exception as e:
-                print(f"Erro ao iniciar ffplay: {e}")
+                logger.error(f"Failed to start ffplay: {e}")
                 self.current_process = None
 
     def stop(self):
-        """Para a reprodução atual."""
+        """Stop the current playback if any."""
         with self.lock:
             if self.current_process and self.current_process.poll() is None:
-                print(f"🔇 Parando processo PID {self.current_process.pid}")
+                pid = self.current_process.pid
+                logger.debug(f"Stopping playback process PID {pid}")
                 try:
-                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                    # Kill the entire process group
+                    os.killpg(os.getpgid(pid), signal.SIGTERM)
                 except ProcessLookupError:
                     pass
                 try:
@@ -41,3 +61,4 @@ class AudioPlayer:
                 except subprocess.TimeoutExpired:
                     self.current_process.kill()
                 self.current_process = None
+                logger.info("Playback stopped")

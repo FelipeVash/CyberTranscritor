@@ -1,4 +1,9 @@
 # controller/app_controller.py
+"""
+Main application controller. Orchestrates backend services, UI updates, and D-Bus communication.
+All logging is done through the centralized logger module.
+"""
+
 from tkinter import ttk
 import tkinter as tk
 import threading
@@ -7,10 +12,6 @@ import traceback
 from pathlib import Path
 import sys
 import torch
-import dbus
-import dbus.service
-import dbus.mainloop.glib
-from gi.repository import GLib
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -27,19 +28,21 @@ from frontend.deepseek_window import DeepSeekWindow
 from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES
 from utils.config_persistence import load_config, save_config
 from utils.i18n import _, set_language, get_current_language, get_available_languages
+from backend.dbus.dbus_service import DBusService
+from utils.logger import logger
 
-dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+class AppController:
+    """
+    Central controller of the application.
+    Manages state, coordinates services, and handles UI actions.
+    """
 
-class AppController(dbus.service.Object):
     def __init__(self):
-        # Inicializa D-Bus
-        bus = dbus.SessionBus()
-        bus_name = dbus.service.BusName('studio.transcritor', bus)
-        dbus.service.Object.__init__(self, bus_name, '/studio/transcritor')
-
+        """Initialize controller, load config, set up services and D-Bus."""
+        logger.info("Initializing AppController")
         self.config = load_config()
-        
-        # Valores padrão (strings comuns) - não criar StringVar aqui
+
+        # Default values (plain strings) – Tkinter variables will be created later
         self._model_size = self.config.get("model_size", config.MODEL_SIZE)
         self._device = self.config.get("device", config.DEVICE)
         self._current_language = self.config.get("source_language", "pt")
@@ -49,13 +52,15 @@ class AppController(dbus.service.Object):
         self.all_languages = ALL_LANGUAGES
         self.all_language_names = ALL_LANGUAGE_NAMES
 
+        # Internal state
         self.is_recording = False
         self.recorder = None
         self.deepseek_window = None
         self.busy = False
         self._root = None
 
-        # Serviços
+        # Services
+        logger.debug("Initializing services")
         self.model_manager = ModelManager(device=self._device)
         self.deepseek_client = DeepSeekClient()
         self.audio_player = AudioPlayer()
@@ -64,7 +69,7 @@ class AppController(dbus.service.Object):
         self.correction_service = CorrectionService()
         self.background_recorder = BackgroundRecorder(self)
 
-        # Referências da UI
+        # UI references (will be set later via set_ui_refs)
         self.text_area = None
         self.trans_area = None
         self.btn_record = None
@@ -73,19 +78,28 @@ class AppController(dbus.service.Object):
         self.status_var = None
         self.progress_bar = None
 
-        # Variáveis Tkinter (serão criadas em init_variables)
+        # Tkinter variables (created in init_variables)
         self.model_size = None
         self.device = None
         self.current_language = None
         self.translate_target = None
         self.ui_language = None
 
+        # Queue for D-Bus commands (to be processed safely in the main thread)
         self.dbus_queue = queue.Queue()
-        print("✅ Controller D-Bus registrado")
 
-    # ==================== INICIALIZAÇÃO DAS VARIÁVEIS TKINTER ====================
+        # Start D-Bus service (passes self to access the queue)
+        self.dbus_service = DBusService(self)
+        logger.info("AppController initialized successfully")
+
+    # ==================== TKINTER VARIABLES INITIALIZATION ====================
+
     def init_variables(self, root):
-        """Cria as variáveis Tkinter associadas à janela raiz."""
+        """
+        Create Tkinter variables associated with the root window.
+        Must be called after the root window exists.
+        """
+        logger.debug("Initializing Tkinter variables")
         self._root = root
         self.model_size = tk.StringVar(root, value=self._model_size)
         self.device = tk.StringVar(root, value=self._device)
@@ -93,20 +107,26 @@ class AppController(dbus.service.Object):
         self.translate_target = tk.StringVar(root, value=self._translate_target)
         self.ui_language = tk.StringVar(root, value=self._ui_language)
 
-        # Configura trace para mudança de idioma
+        # Trace language changes
         self.ui_language.trace('w', self._on_language_change)
 
-    # ==================== PROPRIEDADES ====================
+    # ==================== PROPERTIES ====================
+
     @property
     def root(self):
+        """Return the main tkinter root window."""
         return self._root
 
     @property
     def transcriber(self):
+        """Lazy getter for the transcriber (loads on demand)."""
         return self.model_manager.get_transcriber(self.model_size.get())
 
-    # ==================== VINCULAÇÃO COM UI ====================
+    # ==================== UI REFERENCE SETTER ====================
+
     def set_ui_refs(self, text_area, trans_area, btn_record, btn_deepseek, rec_indicator, status_var, progress_bar=None):
+        """Store references to UI widgets for later updates."""
+        logger.debug("Setting UI references")
         self.text_area = text_area
         self.trans_area = trans_area
         self.btn_record = btn_record
@@ -115,9 +135,10 @@ class AppController(dbus.service.Object):
         self.status_var = status_var
         self.progress_bar = progress_bar
 
-    # ==================== CONTROLE DE PROGRESSO ====================
+    # ==================== PROGRESS BAR CONTROL ====================
+
     def start_progress(self, text=None):
-        """Inicia a barra de progresso indeterminada e opcionalmente atualiza status."""
+        """Start the indeterminate progress bar and optionally update status text."""
         if self.progress_bar:
             self.progress_bar.pack(side=tk.BOTTOM, pady=2)
             self.progress_bar.start(10)
@@ -125,50 +146,24 @@ class AppController(dbus.service.Object):
             self.status_var.set(text)
 
     def stop_progress(self, text=None):
-        """Para a barra de progresso e esconde."""
+        """Stop and hide the progress bar, optionally update status text."""
         if self.progress_bar:
             self.progress_bar.stop()
             self.progress_bar.pack_forget()
         if text:
             self.status_var.set(text)
 
-    # ==================== MÉTODOS D-BUS ====================
-    @dbus.service.method('studio.transcritor')
-    def toggle_recording(self):
-        print("🔵 D-BUS: toggle_recording chamado")
-        self.dbus_queue.put(('toggle_recording',))
+    # ==================== D-BUS QUEUE PROCESSING ====================
 
-    @dbus.service.method('studio.transcritor')
-    def translate(self):
-        print("🔵 D-BUS: translate chamado")
-        self.dbus_queue.put(('translate',))
-
-    @dbus.service.method('studio.transcritor')
-    def save(self):
-        print("🔵 D-BUS: save chamado")
-        self.dbus_queue.put(('save',))
-
-    @dbus.service.method('studio.transcritor')
-    def correct(self):
-        print("🔵 D-BUS: correct chamado")
-        self.dbus_queue.put(('correct',))
-
-    @dbus.service.method('studio.transcritor')
-    def open_deepseek(self):
-        print("🔵 D-BUS: open_deepseek chamado")
-        self.dbus_queue.put(('open_deepseek',))
-
-    @dbus.service.method('studio.transcritor')
-    def stop_audio(self):
-        print("🔵 D-BUS: stop_audio chamado")
-        self.dbus_queue.put(('stop_audio',))
-
-    # ==================== PROCESSAMENTO DA FILA ====================
     def process_dbus_queue(self):
+        """
+        Process commands from the D-Bus queue.
+        This method must be called periodically by the UI main loop.
+        """
         try:
             while True:
                 cmd = self.dbus_queue.get_nowait()
-                print(f"🟢 Controller: comando recebido = {cmd[0]}")
+                logger.debug(f"Processing D-Bus command: {cmd[0]}")
                 try:
                     if cmd[0] == 'toggle_recording':
                         self._toggle_recording_action()
@@ -181,16 +176,21 @@ class AppController(dbus.service.Object):
                     elif cmd[0] == 'open_deepseek':
                         self.open_deepseek_window()
                     elif cmd[0] == 'stop_audio':
-                        print("🟢 Processando stop_audio da fila")
+                        logger.debug("Processing stop_audio command")
                         self.stop_all_audio()
+                    elif cmd[0] == 'toggle_background':
+                        self._toggle_background_action()
                 except Exception as e:
-                    print(f"❌ Erro ao processar comando {cmd[0]}: {e}")
+                    logger.error(f"Error processing command {cmd[0]}: {e}")
                     traceback.print_exc()
         except queue.Empty:
             pass
 
     def _toggle_recording_action(self):
+        """Toggle recording state (called from UI or D-Bus)."""
+        logger.debug(f"_toggle_recording_action: busy={self.busy}, is_recording={self.is_recording}")
         if self.busy:
+            logger.warning("System busy, ignoring toggle")
             return
         self.busy = True
         try:
@@ -201,28 +201,46 @@ class AppController(dbus.service.Object):
         finally:
             self.busy = False
 
-    # ==================== MUDANÇA DE IDIOMA ====================
+    def toggle_recording(self):
+        """Public method called by the UI to toggle recording."""
+        logger.debug("toggle_recording called from UI")
+        self._toggle_recording_action()
+
+    def _toggle_background_action(self):
+        """Toggle background recording mode."""
+        if self.background_recorder.recording:
+            logger.info("Stopping background recording")
+            self.background_recorder.stop()
+        else:
+            logger.info("Starting background recording")
+            self.background_recorder.start()
+
+    # ==================== LANGUAGE CHANGE ====================
+
     def _on_language_change(self, *args):
+        """Callback triggered when UI language is changed."""
         selected = self.ui_language.get()
-        # Extrai o código entre parênteses (ex: "Português (pt)" -> "pt")
+        # Extract code from parentheses, e.g. "Português (pt)" -> "pt"
         import re
         match = re.search(r'\(([^)]+)\)', selected)
         if match:
             code = match.group(1)
+            logger.info(f"Changing UI language to: {code}")
             set_language(code)
             self.update_ui_language()
         else:
-            print("Formato inválido para idioma")
+            logger.error(f"Invalid language format: {selected}")
 
     def update_ui_language(self):
-        """Atualiza todos os textos da interface para o idioma atual."""
+        """Update all UI texts to the current language."""
+        logger.debug("Updating UI language")
         if self.root:
             self._update_widget_language(self.root)
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
             self._update_widget_language(self.deepseek_window.window)
 
     def _update_widget_language(self, widget):
-        """Atualiza recursivamente os textos dos widgets que possuem i18n_key."""
+        """Recursively update text of widgets that have an i18n_key attribute."""
         if hasattr(widget, 'i18n_key') and widget.i18n_key:
             try:
                 new_text = _(widget.i18n_key)
@@ -231,21 +249,24 @@ class AppController(dbus.service.Object):
                                        tk.Label, tk.Button, tk.Checkbutton, tk.Radiobutton)):
                     widget.config(text=new_text)
             except Exception as e:
-                print(f"Erro ao atualizar widget {widget}: {e}")
+                logger.error(f"Error updating widget {widget}: {e}")
         for child in widget.winfo_children():
             self._update_widget_language(child)
 
     def get_ui_language_options(self):
-        """Retorna lista de opções de idioma para o combobox (nome + código)."""
+        """Return list of language options for the combobox (name + code)."""
         codes = get_available_languages()
         options = []
         for code in codes:
-            name = _("common.languages." + code)  # ex: "Português"
+            name = _("common.languages." + code)
             options.append(f"{name} ({code})")
         return options
 
-    # ==================== AÇÕES PRINCIPAIS ====================
+    # ==================== MAIN ACTIONS ====================
+
     def start_recording(self):
+        """Start audio recording."""
+        logger.info("Starting recording")
         self.recorder = AudioRecorder(samplerate=config.SAMPLE_RATE, channels=config.CHANNELS)
         self.text_area.delete(1.0, tk.END)
         self.trans_area.delete(1.0, tk.END)
@@ -257,7 +278,8 @@ class AppController(dbus.service.Object):
         self.status_var.set(_("common.audio.recording"))
 
     def stop_and_transcribe(self):
-        """Para a gravação e inicia a transcrição em thread."""
+        """Stop recording and start transcription in a thread."""
+        logger.info("Stopping recording and transcribing")
         self.is_recording = False
         audio = self.recorder.stop()
         self.btn_record.config(text=_("main_window.controls.buttons.record"), style="Pink.TButton")
@@ -287,23 +309,27 @@ class AppController(dbus.service.Object):
             except Exception as e:
                 self.root.after(0, lambda: self.show_error(
                     _("dialogs.common.error"),
-                    f"Erro inesperado: {e}"
+                    f"Unexpected error: {e}"
                 ))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
 
         threading.Thread(target=transcribe_task, daemon=True).start()
 
     def display_transcription(self, text):
+        """Display transcribed text in the UI."""
+        logger.info("Transcription completed")
         self.text_area.insert(tk.END, text + "\n")
         self.stop_progress(_("main_window.status.transcribing_done"))
         self.btn_deepseek.config(state="normal")
         self.show_notification(_("tray.notifications.transcription_ready"), "")
 
     def translate_text(self):
+        """Translate the current transcription."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
+        logger.info("Starting translation")
         self.start_progress(_("main_window.status.translating"))
         target = self.translate_target.get()
 
@@ -332,14 +358,14 @@ class AppController(dbus.service.Object):
         threading.Thread(target=task, daemon=True).start()
 
     def translate_all(self):
-        """Traduz para todos os idiomas suportados, exceto o idioma de origem."""
+        """Translate to all supported languages except the source language."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
+        logger.info("Starting multi-language translation")
         self.start_progress(_("main_window.status.translating"))
         source = self.current_language.get()
-        # Filtra a lista de idiomas excluindo o de origem
         targets = [lang for lang in self.all_languages if lang != source]
 
         def task():
@@ -352,27 +378,28 @@ class AppController(dbus.service.Object):
                     )
                     self.root.after(0, lambda l=target, t=translated: self.insert_translation(l, t))
                 except Exception as e:
-                    self.root.after(0, lambda: self.insert_translation(target, f"[Erro: {e}]"))
+                    logger.error(f"Translation error for {target}: {e}")
+                    self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
             self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
 
         threading.Thread(target=task, daemon=True).start()
 
     def insert_translation(self, lang_code, text):
-        """Insere uma tradução na área de traduções com código do idioma entre colchetes."""
+        """Insert a translation into the translations area with language code in brackets."""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         prefix = f"[{timestamp}] [{lang_code.upper()}] "
-        # Insere sem tags especiais (usa a fonte padrão do widget)
         self.trans_area.insert(tk.END, prefix)
         self.trans_area.insert(tk.END, text + "\n\n")
         self.trans_area.see(tk.END)
 
     def correct_transcription(self):
-        """Corrige a transcrição atual usando o serviço de correção."""
+        """Open correction dialog for the transcription text."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
+        logger.debug("Opening transcription correction dialog")
         from frontend.dialogs import show_correction_dialog
         show_correction_dialog(
             self.root,
@@ -384,11 +411,12 @@ class AppController(dbus.service.Object):
         )
 
     def correct_translation(self):
-        """Corrige a tradução atual usando o serviço de correção (idioma alvo: inglês)."""
+        """Open correction dialog for the translation area (target language: English)."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
+        logger.debug("Opening translation correction dialog")
         from frontend.dialogs import show_correction_dialog
         show_correction_dialog(
             self.root,
@@ -400,35 +428,42 @@ class AppController(dbus.service.Object):
         )
 
     def save_transcription(self):
+        """Save the current transcription to a file."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
         from datetime import datetime
-        filename = f"transcricao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        filepath = Path(__file__).parent.parent / "transcricoes" / filename
+        filename = f"transcription_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(text)
-        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filepath))
+        logger.info(f"Transcription saved to {filepath}")
+        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def save_translations(self):
+        """Save all translations to a file."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
         from datetime import datetime
-        filename = f"traducoes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        filepath = Path(__file__).parent.parent / "transcricoes" / filename
+        filename = f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(text)
-        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filepath))
+        logger.info(f"Translations saved to {filepath}")
+        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def open_deepseek_window(self):
+        """Open or restore the DeepSeek query window."""
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
+            logger.debug("Restoring existing DeepSeek window")
             self.deepseek_window.show_window()
         else:
+            logger.info("Creating new DeepSeek window")
             try:
                 self.deepseek_window = DeepSeekWindow(
                     self.root,
@@ -436,42 +471,67 @@ class AppController(dbus.service.Object):
                     audio_player=self.audio_player
                 )
             except Exception as e:
-                print(f"❌ Erro ao abrir DeepSeekWindow: {e}")
+                logger.error(f"Error creating DeepSeek window: {e}")
                 traceback.print_exc()
                 self.show_error(_("dialogs.common.error"), _("deepseek_window.messages.deepseek_error", error=str(e)))
 
+    def open_deepseek_with_context(self, prompt, response):
+        """Open DeepSeek window with a pre-filled prompt and response."""
+        if self.deepseek_window and self.deepseek_window.window.winfo_exists():
+            logger.debug("Closing existing DeepSeek window to open with context")
+            self.deepseek_window.destroy()
+        try:
+            logger.info("Opening DeepSeek window with context")
+            self.deepseek_window = DeepSeekWindow(
+                self.root,
+                self,
+                initial_prompt=prompt,
+                initial_response=response,
+                audio_player=self.audio_player
+            )
+        except Exception as e:
+            logger.error(f"Error opening DeepSeek window with context: {e}")
+            traceback.print_exc()
+            self.show_error(_("dialogs.common.error"), str(e))
+
     def stop_all_audio(self):
-        print("🔇 Parando todo áudio via AudioPlayer")
+        """Stop all audio playback."""
+        logger.info("Stopping all audio")
         self.audio_player.stop()
 
-    # Background recording (simplificado)
-    def start_background_recording(self):
-        self.background_recorder.start()
+    # ==================== BACKGROUND RECORDING (already integrated) ====================
 
-    def stop_background_recording(self, from_timer=False):
-        self.background_recorder.stop(from_timer)
+    # ==================== NOTIFICATIONS AND DIALOGS ====================
 
     def show_notification(self, title, message):
+        """Send a desktop notification."""
         try:
             import subprocess
             subprocess.run(['notify-send', title, message])
+            logger.debug(f"Notification sent: {title}")
         except Exception as e:
-            print(f"Erro na notificação: {e}")
+            logger.error(f"Failed to send notification: {e}")
 
     def show_error(self, title, message):
+        """Show an error message box."""
         from tkinter import messagebox
         messagebox.showerror(title, message, parent=self.root)
 
     def show_info(self, title, message):
+        """Show an information message box."""
         from tkinter import messagebox
         messagebox.showinfo(title, message, parent=self.root)
 
     def show_warning(self, title, message):
+        """Show a warning message box."""
         from tkinter import messagebox
         messagebox.showwarning(title, message, parent=self.root)
 
+    # ==================== APPLICATION SHUTDOWN ====================
+
     def quit_app(self):
-        print("Encerrando aplicativo...")
+        """Shut down the application, save config, unload models."""
+        logger.info("Shutting down application")
         config_dict = {
             "model_size": self.model_size.get(),
             "device": self.device.get(),
@@ -484,4 +544,5 @@ class AppController(dbus.service.Object):
         self.model_manager.unload_all()
         if self.root:
             self.root.quit()
+        logger.info("Application terminated")
         sys.exit(0)
