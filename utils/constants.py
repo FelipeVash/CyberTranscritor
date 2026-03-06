@@ -14,8 +14,15 @@ LT_LANGUAGE_MAP = {
 
 # Mapeamento para NLLB (mantido por compatibilidade, mas não usado se migrar completamente)
 FLORES_CODES = {
-    "pt": "por_Latn", "en": "eng_Latn", "es": "spa_Latn", "fr": "fra_Latn",
-    "de": "deu_Latn", "it": "ita_Latn", "ja": "jpn_Jpan", "zh": "zho_Hans"
+    "pt": "por_Latn",
+    "en": "eng_Latn",
+    "es": "spa_Latn",
+    "fr": "fra_Latn",
+    "de": "deu_Latn",
+    "it": "ita_Latn",
+    "ja": "jpn_Jpan",
+    "zh": "zho_Hans",
+    "ko": "kor_Hang"  # se suportado
 }
 
 # Hunyuan usa os próprios códigos ISO, então não precisa mapeamento extra.

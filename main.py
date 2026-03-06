@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
 # main.py
-# Ponto de entrada da aplicação
-
+from controller.app_controller import AppController
 from frontend.main_window import TranscriptionStudio
 
-if __name__ == "__main__":
-    app = TranscriptionStudio()
+def main():
+    controller = AppController()
+    app = TranscriptionStudio(controller)
     app.root.mainloop()
+
+if __name__ == "__main__":
+    main()

@@ -1,4 +1,4 @@
-# backend/audio_recorder.py
+# backend/audio/recorder.py
 import sounddevice as sd
 import numpy as np
 import threading
@@ -14,7 +14,6 @@ class AudioRecorder:
         self.thread = None
 
     def start(self):
-        """Inicia a gravação de áudio."""
         self.audio_buffer = []
         self.is_recording = True
         self.thread = threading.Thread(target=self._record, daemon=True)
@@ -22,19 +21,15 @@ class AudioRecorder:
         print("🔴 Gravação iniciada")
 
     def stop(self):
-        """Para a gravação e retorna o áudio capturado."""
         self.is_recording = False
         if self.thread:
             self.thread.join(timeout=2)
         if not self.audio_buffer:
-            print("⚠️ Nenhum áudio gravado")
             return np.array([])
         audio = np.concatenate(self.audio_buffer)
-        print(f"⏹️ Gravação finalizada: {len(audio)} amostras")
         return audio
 
     def _record(self):
-        """Método interno que executa a captura em thread."""
         with sd.InputStream(samplerate=self.samplerate, channels=self.channels,
                             blocksize=self.blocksize, dtype='float32') as stream:
             while self.is_recording:

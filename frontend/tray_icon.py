@@ -4,6 +4,7 @@ import pystray
 from PIL import Image, ImageDraw
 import subprocess
 import os
+from utils.i18n import _
 
 class TrayIcon:
     def __init__(self, app):
@@ -24,13 +25,15 @@ class TrayIcon:
         self.app.hide_window()
 
     def on_quit(self, icon, item):
+        if hasattr(self.app, 'stop_all_audio'):
+            self.app.stop_all_audio()
         self.app.quit_app()
 
     def setup_menu(self):
         return (
-            pystray.MenuItem("Mostrar", self.on_show),
-            pystray.MenuItem("Ocultar", self.on_hide),
-            pystray.MenuItem("Sair", self.on_quit),
+            pystray.MenuItem(_("tray.menu.show"), self.on_show),
+            pystray.MenuItem(_("tray.menu.hide"), self.on_hide),
+            pystray.MenuItem(_("tray.menu.quit"), self.on_quit),
         )
 
     def run(self):

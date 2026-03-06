@@ -2,24 +2,24 @@
 import threading
 import tempfile
 import os
-import subprocess
 import wave
-import struct
 from pathlib import Path
 from piper import PiperVoice
 
-# Alias para compatibilidade - exporta TTSEngine como PiperTTSEngine
-TTSEngine = None  # Será definido abaixo como alias da classe principal
+# Alias para compatibilidade
+TTSEngine = None
 
 class PiperTTSEngine:
-    def __init__(self, device="cpu", model_name="pt_BR-faber-medium", model_path=None):
-        self.device = "cpu"  # Força CPU para compatibilidade com ROCm
+    def __init__(self, device="cpu", model_name="pt_BR-faber-medium", model_path=None, audio_player=None):
+        self.device = "cpu"
         self.model_name = model_name
         self.model_path = model_path
+        self.audio_player = audio_player  # Recebe o player externo
         self.voice = None
+        self.current_temp_file = None
+        self.lock = threading.RLock()
 
         if self.model_path is None:
-            # Caminho padrão para o modelo (ajuste se necessário)
             self.model_path = Path.home() / ".local/share/piper" / "pt_BR" / "faber" / "medium" / "faber-medium.onnx"
 
     def load_model(self):
@@ -41,63 +41,55 @@ class PiperTTSEngine:
         if not self.load_model():
             return None
         try:
-            # Obtém o gerador de chunks
             audio_chunks = list(self.voice.synthesize(text))
-            
-            # Concatena todos os chunks em um único objeto bytes
             audio_bytes = b''.join(chunk.audio_int16_bytes for chunk in audio_chunks)
-            
-            # Obtém parâmetros do áudio do primeiro chunk
             sample_rate = audio_chunks[0].sample_rate if audio_chunks else 22050
             sample_width = audio_chunks[0].sample_width if audio_chunks else 2
             channels = audio_chunks[0].sample_channels if audio_chunks else 1
-            
-            # Cria um arquivo WAV válido
+
             temp = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            
-            with wave.open(temp.name, 'wb') as wav_file:
+            temp_path = temp.name
+            temp.close()
+
+            with wave.open(temp_path, 'wb') as wav_file:
                 wav_file.setnchannels(channels)
                 wav_file.setsampwidth(sample_width)
                 wav_file.setframerate(sample_rate)
                 wav_file.writeframes(audio_bytes)
-            
-            return temp.name
+
+            return temp_path
         except Exception as e:
             print(f"❌ Erro na síntese Piper: {e}")
             return None
 
     def play_audio(self, file_path):
-        def play():
-            try:
-                subprocess.run(['ffplay', '-nodisp', '-autoexit', file_path],
-                              stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
-            except Exception as e:
-                print(f"Erro na reprodução: {e}")
-            finally:
-                try:
-                    os.unlink(file_path)
-                except:
-                    pass
-        threading.Thread(target=play, daemon=True).start()
+        """Reproduz o arquivo usando o AudioPlayer externo."""
+        if self.audio_player:
+            self.audio_player.play(file_path)
+        else:
+            print("⚠️ Nenhum AudioPlayer disponível para reprodução.")
 
-    # Método speak para compatibilidade com a interface esperada
     def speak(self, text):
-        """Método de compatibilidade - sintetiza e reproduz o texto."""
+        """Sintetiza e reproduz o texto."""
         file_path = self.synthesize(text)
         if file_path:
             self.play_audio(file_path)
             return True
         return False
 
-    # Método stop para compatibilidade (pode ser implementado se necessário)
     def stop(self):
-        """Interrompe a reprodução atual (placeholder - implementar se necessário)."""
-        # Como a reprodução é feita em thread separada com ffplay,
-        # seria necessário gerenciar o processo para parar.
-        # Por enquanto, é um placeholder.
-        pass
+        """Interrompe a reprodução via AudioPlayer."""
+        if self.audio_player:
+            self.audio_player.stop()
 
+    def unload_model(self):
+        if self.voice:
+            del self.voice
+            self.voice = None
+        print("Modelo TTS descarregado.")
 
-# Definir TTSEngine como alias para PiperTTSEngine para compatibilidade
+    def __del__(self):
+        self.unload_model()
+
+# Definir TTSEngine como alias
 TTSEngine = PiperTTSEngine

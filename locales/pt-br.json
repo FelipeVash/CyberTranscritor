@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "language": "pt-BR",
+    "language_name": "Português (Brasil)"
+  },
+  "main_window": {
+    "title": "Studio de Transcrição Cyberpunk",
+    "controls": {
+      "ui_language": "Idioma da interface",
+      "frame_title": "⚡ CONTROLES",
+      "model": "Modelo:",
+      "device": "Dispositivo:",
+      "source_language": "Idioma (origem):",
+      "target_language": "Traduzir para:",
+      "buttons": {
+        "record": "▶ Gravar",
+        "stop_record": "⏹ PARAR GRAVAÇÃO",
+        "record_tooltip": "Iniciar/parar gravação (Super+1)",
+        "translate": "🌐 Traduzir",
+        "translate_tooltip": "Traduzir transcrição para o idioma selecionado (Super+2)",
+        "multitranslate": "🌍 MultiTradução",
+        "multitranslate_tooltip": "Traduzir transcrição para todos os idiomas",
+        "save": "💾 Salvar",
+        "save_tooltip": "Salvar transcrição atual em arquivo (Super+3)",
+        "deepseek": "🤖 DeepSeek",
+        "deepseek_tooltip": "Abrir/restaurar janela de consulta DeepSeek (Super+5)",
+        "correct": "✍️ Corrigir",
+        "correct_tooltip": "Corrigir gramática da transcrição (Super+4)",
+        "clear": "🗑️ Limpar",
+        "clear_tooltip": "Limpar a área de texto",
+        "save_translations": "💾 Salvar Traduções",
+        "save_translations_tooltip": "Salvar todas as traduções em arquivo"
+      }
+    },
+    "format_toolbar": {
+      "bold": "Negrito (Ctrl+B)",
+      "bold_tooltip": "Negrito (Ctrl+B)",
+      "italic": "Itálico (Ctrl+I)",
+      "italic_tooltip": "Itálico (Ctrl+I)",
+      "underline": "Sublinhado (Ctrl+U)",
+      "underline_tooltip": "Sublinhado (Ctrl+U)",
+      "strike": "Tachado",
+      "strike_tooltip": "Tachado",
+      "font_size": "Tamanho ▼",
+      "font_size_tooltip": "Alterar tamanho da fonte (todo o texto)",
+      "color": "🎨",
+      "color_tooltip": "Aplicar cor ao texto selecionado",
+      "heading": "H",
+      "heading_tooltip": "Aplicar estilo de título",
+      "datetime": "🕒",
+      "datetime_tooltip": "Inserir data e hora atual",
+      "align_left": "⬅",
+      "align_left_tooltip": "Alinhar parágrafo à esquerda",
+      "align_center": "⏺",
+      "align_center_tooltip": "Centralizar parágrafo",
+      "align_right": "➡",
+      "align_right_tooltip": "Alinhar parágrafo à direita",
+      "align_justify": "↔",
+      "align_justify_tooltip": "Justificar parágrafo",
+      "indent_increase": "⇢",
+      "indent_increase_tooltip": "Aumentar indentação (adicionar 4 espaços)",
+      "indent_decrease": "⇠",
+      "indent_decrease_tooltip": "Diminuir indentação (remover 4 espaços)",
+      "numbered_list": "1.",
+      "numbered_list_tooltip": "Inserir/continuar lista numerada (Enter incrementa)",
+      "bullet_list": "•",
+      "bullet_list_tooltip": "Inserir/remover marcador na linha atual",
+      "table": "⧠",
+      "table_tooltip": "Inserir tabela simples 3x2",
+      "export_html": "HTML",
+      "export_html_tooltip": "Exportar conteúdo como HTML (texto puro)",
+      "import_html": "IMPORT",
+      "import_html_tooltip": "Importar de arquivo HTML (extrai texto puro)"
+    },
+    "tabs": {
+      "transcription": "📝 TRANSCRIÇÃO",
+      "translations": "🌐 TRADUÇÕES"
+    },
+    "indicators": {
+      "recording": "🔴 GRAVANDO...",
+      "stopped": "⏹ PARADO",
+      "processing": "⏳ Processando...",
+      "ready": "✅ Pronto.",
+      "error": "❌ Erro",
+      "warning": "⚠️ Aviso"
+    },
+    "status": {
+      "microphone_ok": "🎤 Microfone OK. {count} dispositivo(s)",
+      "no_microphone": "❌ Nenhum dispositivo de entrada de áudio encontrado.",
+      "loading_model": "⏳ Carregando modelo {model}...",
+      "model_loaded": "✅ Modelo {model} carregado.",
+      "transcribing": "⏳ Transcrevendo...",
+      "transcribing_done": "✅ Transcrição concluída.",
+      "translating": "⏳ Traduzindo...",
+      "translating_done": "✅ Tradução concluída.",
+      "saving": "💾 Salvando...",
+      "saved": "✅ Salvo em {filename}",
+      "correcting": "✍️ Corrigindo...",
+      "correcting_done": "✅ Correção concluída."
+    },
+    "tooltips": {
+      "model": "Modelo Whisper a ser usado para transcrição",
+      "device": "Dispositivo para inferência (GPU recomendada)",
+      "source_language": "Idioma do áudio (para transcrição)",
+      "target_language": "Idioma de destino para tradução",
+      "rec_indicator": "Status da gravação",
+      "status_bar": "Barra de status",
+      "ui_language": "Selecionar idioma da interface"
+    }
+  },
+  "deepseek_window": {
+    "title": "🤖 DeepSeek - Consulta por Áudio",
+    "options_frame": "⚙️ Opções de Consulta",
+    "controls": {
+      "record": "▶ INICIAR GRAVAÇÃO",
+      "stop_record": "⏹ PARAR E ENVIAR",
+      "record_tooltip": "Iniciar gravação de áudio (Ctrl+R)",
+      "send_text": "📤 ENVIAR TEXTO",
+      "send_tooltip": "Enviar texto digitado (Enter)",
+      "stop_audio": "⏹ Parar Áudio",
+      "stop_audio_tooltip": "Parar a reprodução de áudio em andamento",
+      "listen": "🔊 Ouvir resposta",
+      "listen_tooltip": "Ouvir a última resposta (TTS)",
+      "tts_unavailable": "🔊 TTS indisponível"
+    },
+    "options": {
+      "thinking": "Deep Think (raciocínio detalhado)",
+      "thinking_tooltip": "Ativa o modo de raciocínio profundo do modelo",
+      "web_search": "Pesquisa na Internet",
+      "web_search_tooltip": "Permite busca atualizada (via DuckDuckGo)",
+      "correction": "Corrigir texto transcrito",
+      "correction_tooltip": "Corrige automaticamente a transcrição antes de enviar"
+    },
+    "labels": {
+      "history": "📜 Histórico",
+      "input": "✏️ Entrada (digite ou use áudio)",
+      "status_idle": "⏹ Parado",
+      "status_recording": "🔴 Gravando...",
+      "status_transcribing": "⏳ Transcrevendo...",
+      "status_consulting": "⏳ Consultando DeepSeek...",
+      "status_response": "✅ Resposta recebida",
+      "status_preloaded": "✅ Resposta pré-carregada",
+      "hint": "Enter: enviar | Shift+Enter: nova linha | Ctrl+R: gravar | Esc: fechar"
+    },
+    "messages": {
+      "no_audio": "Nenhum áudio gravado.",
+      "no_text": "Nada para enviar.",
+      "no_response": "Nenhuma resposta disponível.",
+      "tts_error": "TTS não disponível.",
+      "transcription_error": "Erro na transcrição",
+      "deepseek_error": "Falha na consulta: {error}"
+    },
+    "history": {
+      "user_prefix": "[{timestamp}] Você:",
+      "assistant_prefix": "[{timestamp}] DeepSeek:"
+    }
+  },
+  "dialogs": {
+    "correction": {
+      "title": "Correção da Transcrição",
+      "title_response": "Correção da Resposta",
+      "original": "Texto Original",
+      "corrected": "Texto Corrigido",
+      "apply": "Aplicar",
+      "cancel": "Cancelar",
+      "close": "Fechar",
+      "correcting": "Corrigindo...",
+      "error": "Erro na correção: {error}"
+    },
+    "common": {
+      "error": "Erro",
+      "warning": "Aviso",
+      "info": "Informação",
+      "success": "Sucesso",
+      "yes": "Sim",
+      "no": "Não",
+      "ok": "OK",
+      "cancel": "Cancelar",
+      "choose_color": "Escolha uma cor"
+    }
+  },
+  "tray": {
+    "menu": {
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "quit": "Sair"
+    },
+    "notifications": {
+      "recording_started": "🎤 Gravação iniciada",
+      "recording_stopped": "⏹️ Gravação finalizada",
+      "transcription_ready": "Transcrição pronta",
+      "transcription_saved": "Transcrição salva: {filename}",
+      "background_start": "Fale agora. Pressione Super+0 novamente para parar.",
+      "background_timeout": "Tempo limite de silêncio atingido.",
+      "background_no_audio": "Nenhum áudio detectado.",
+      "background_processing": "⏳ Processando",
+      "app_minimized": "Aplicativo minimizado",
+      "app_minimized_msg": "O programa continua em segundo plano.",
+      "language_changed_title": "Idioma alterado",
+      "language_changed_msg": "Reinicie o aplicativo para aplicar completamente as mudanças de idioma."
+    }
+  },
+  "prompts": {
+    "deepseek_system": "Você é um assistente útil e conciso.",
+    "deepseek_user": "{text}",
+    "deepseek_user_with_web": "Pergunta do usuário: {text}\n\nResultados de pesquisa na internet (atuais):\n{web_results}\n\nCom base nas informações acima, responda à pergunta do usuário de forma completa e atualizada.",
+    "correction": "Corrija a gramática do seguinte texto em {language}, mantendo o sentido original:\n\n{text}",
+    "translation": "Traduza o seguinte segmento de {source_lang} para {target_lang}, sem explicações adicionais.\n\n{text}",
+    "thinking_prefix": "Vamos pensar passo a passo."
+  },
+  "common": {
+    "audio": {
+      "recording": "Gravando...",
+      "stopped": "Parado",
+      "processing": "Processando...",
+      "error": "Erro no áudio"
+    },
+    "time": {
+      "just_now": "agora",
+      "seconds_ago": "{seconds} segundos atrás",
+      "minutes_ago": "{minutes} minutos atrás",
+      "hours_ago": "{hours} horas atrás"
+    },
+    "placeholders": {
+      "type_here": "Digite aqui..."
+    },
+    "languages": {
+      "pt-br": "Português (Brasil)",
+      "pt": "Português",
+      "en": "Inglês",
+      "es": "Espanhol",
+      "fr": "Francês",
+      "de": "Alemão",
+      "it": "Italiano",
+      "zh": "Chinês",
+      "ja": "Japonês",
+      "ko": "Coreano"
+    },
+    "flags": {
+      "pt": "🇧🇷",
+      "en": "🇺🇸",
+      "es": "🇪🇸",
+      "fr": "🇫🇷",
+      "de": "🇩🇪",
+      "it": "🇮🇹",
+      "zh": "🇨🇳",
+      "ja": "🇯🇵",
+      "ko": "🇰🇷"
+    }
+  },
+  "errors": {
+    "transcription": "Erro na transcrição: {error}",
+    "translation": "Erro na tradução de {source} para {target}: {error}",
+    "correction": "Erro na correção gramatical: {error}"
+  }
+}
