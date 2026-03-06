@@ -17,6 +17,7 @@ import ttkbootstrap as tb
 from utils.i18n import _
 from utils.logger import logger
 from utils.config_persistence import save_config
+from utils.tooltip import ToolTip  # <-- importação necessária
 import re
 
 class SettingsWindow:
