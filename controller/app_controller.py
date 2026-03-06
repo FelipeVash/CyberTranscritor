@@ -22,7 +22,7 @@ from backend.audio.recorder import AudioRecorder
 from backend.audio.player import AudioPlayer
 from backend.services.transcription_service import TranscriptionService, TranscriptionError
 from backend.services.translation_service import TranslationService, TranslationError
-from backend.services.correction_service import CorrectionService
+from backend.services.correction_service import CorrectionService, CorrectionError
 from backend.background.background_recorder import BackgroundRecorder
 from frontend.deepseek_window import DeepSeekWindow
 from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES
@@ -153,6 +153,23 @@ class AppController:
         if text:
             self.status_var.set(text)
 
+    # ==================== CENTRALIZED ERROR HANDLING ====================
+
+    def _handle_service_error(self, exception, user_message_key=None, **kwargs):
+        """
+        Centralized error handling for service operations.
+
+        Args:
+            exception: The exception that occurred.
+            user_message_key: i18n key for the message to show to the user.
+            **kwargs: Additional parameters for the i18n message.
+        """
+        logger.error(f"Service error: {exception}", exc_info=True)
+        if user_message_key:
+            self.show_error(_("dialogs.common.error"), _(user_message_key, **kwargs))
+        else:
+            self.show_error(_("dialogs.common.error"), str(exception))
+
     # ==================== D-BUS QUEUE PROCESSING ====================
 
     def process_dbus_queue(self):
@@ -183,7 +200,6 @@ class AppController:
                 except Exception as e:
                     logger.error(f"Error processing command {cmd[0]}: {e}")
                     traceback.print_exc()
-                    self.show_error(_("dialogs.common.error"), str(e))
         except queue.Empty:
             pass
 
@@ -302,18 +318,10 @@ class AppController:
                 )
                 self.root.after(0, lambda: self.display_transcription(text))
             except TranscriptionError as e:
-                logger.error(f"Transcription error: {e}")
-                self.root.after(0, lambda: self.show_error(
-                    _("dialogs.common.error"),
-                    _(e.key, **e.kwargs)
-                ))
+                self.root.after(0, lambda: self._handle_service_error(e, e.key, **e.kwargs))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
             except Exception as e:
-                logger.error(f"Unexpected transcription error: {e}")
-                self.root.after(0, lambda: self.show_error(
-                    _("dialogs.common.error"),
-                    f"Unexpected error: {e}"
-                ))
+                self.root.after(0, lambda: self._handle_service_error(e))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
 
         threading.Thread(target=transcribe_task, daemon=True).start()
@@ -346,18 +354,10 @@ class AppController:
                 self.root.after(0, lambda: self.insert_translation(target, translated))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
             except TranslationError as e:
-                logger.error(f"Translation error: {e}")
-                self.root.after(0, lambda e=e: self.show_error(
-                    _("dialogs.common.error"),
-                    _(e.key, **e.kwargs)
-                ))
+                self.root.after(0, lambda: self._handle_service_error(e, e.key, **e.kwargs))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
             except Exception as e:
-                logger.error(f"Unexpected translation error: {e}")
-                self.root.after(0, lambda e=e: self.show_error(
-                    _("dialogs.common.error"),
-                    str(e)
-                ))
+                self.root.after(0, lambda: self._handle_service_error(e))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
 
         threading.Thread(target=task, daemon=True).start()
@@ -382,8 +382,11 @@ class AppController:
                         target_lang=target
                     )
                     self.root.after(0, lambda l=target, t=translated: self.insert_translation(l, t))
-                except Exception as e:
+                except TranslationError as e:
                     logger.error(f"Translation error for {target}: {e}")
+                    self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
+                except Exception as e:
+                    logger.error(f"Unexpected error for {target}: {e}")
                     self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
             self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
 
@@ -484,9 +487,7 @@ class AppController:
                     audio_player=self.audio_player
                 )
             except Exception as e:
-                logger.error(f"Error creating DeepSeek window: {e}")
-                traceback.print_exc()
-                self.show_error(_("dialogs.common.error"), _("deepseek_window.messages.deepseek_error", error=str(e)))
+                self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
 
     def open_deepseek_with_context(self, prompt, response):
         """Open DeepSeek window with a pre-filled prompt and response."""
@@ -503,9 +504,7 @@ class AppController:
                 audio_player=self.audio_player
             )
         except Exception as e:
-            logger.error(f"Error opening DeepSeek window with context: {e}")
-            traceback.print_exc()
-            self.show_error(_("dialogs.common.error"), str(e))
+            self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
 
     def stop_all_audio(self):
         """Stop all audio playback."""

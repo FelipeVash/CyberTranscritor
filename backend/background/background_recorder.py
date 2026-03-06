@@ -4,13 +4,12 @@ Background recording module.
 Handles audio capture when the application is minimized (triggered by Super+0).
 Detects silence, transcribes, and queries DeepSeek.
 Results are shown as notifications or by opening the DeepSeek window.
+All logging is done through the centralized logger.
 """
 
 import threading
 import numpy as np
 from backend.audio.recorder import AudioRecorder
-from backend.services.transcription_service import TranscriptionService, TranscriptionError
-from backend.services.translation_service import TranslationService
 from backend.deepseek_client import DeepSeekClient
 from utils.i18n import _
 from utils.logger import logger
@@ -117,9 +116,9 @@ class BackgroundRecorder:
                 logger.debug("Transcribing background audio")
                 text = transcriber.transcribe(audio, language=self.controller.current_language.get())
                 if text.startswith("[Erro:") or text.startswith("❌") or "áudio muito baixo" in text.lower():
-                    self.controller.root.after(0, lambda: self.controller.show_error(
-                        _("dialogs.common.error"),
-                        text
+                    # Use controller's centralized error handling
+                    self.controller.root.after(0, lambda: self.controller._handle_service_error(
+                        Exception(text), "deepseek_window.messages.transcription_error"
                     ))
                     return
 
@@ -136,17 +135,16 @@ class BackgroundRecorder:
                         resposta[:200] + ("..." if len(resposta) > 200 else "")
                     ))
                     # Optionally speak the response via TTS
-                    if self.controller.tts_engine:
+                    if hasattr(self.controller, 'tts_engine') and self.controller.tts_engine:
                         threading.Thread(target=self.controller.tts_engine.speak, args=(resposta,), daemon=True).start()
                 else:
                     # Long response: open DeepSeek window with context
                     self.controller.root.after(0, lambda: self.controller.open_deepseek_with_context(text, resposta))
             except Exception as e:
                 logger.error(f"Error processing background audio: {e}")
-                traceback.print_exc()
-                self.controller.root.after(0, lambda: self.controller.show_error(
-                    _("dialogs.common.error"),
-                    str(e)
+                logger.debug(traceback.format_exc())
+                self.controller.root.after(0, lambda: self.controller._handle_service_error(
+                    e, "deepseek_window.messages.deepseek_error", error=str(e)
                 ))
 
         threading.Thread(target=task, daemon=True).start()
