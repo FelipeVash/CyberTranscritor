@@ -1,3 +1,6 @@
+```markdown
+Português | [English](README-en.md) | [Español](README-es.md) | [中文](README-zh.md)
+
 # 🎤 Studio de Transcrição Cyberpunk
 
 Um aplicativo desktop para transcrição de áudio em tempo real, tradução, consulta ao DeepSeek e síntese de voz, com foco em privacidade (tudo rodando localmente), interface cyberpunk e atalhos de teclado eficientes.
