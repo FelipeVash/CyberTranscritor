@@ -48,6 +48,7 @@ class TranscriptionService:
             TranscriptionError: if transcription fails
         """
         try:
+            logger.debug(f"Starting transcription (model={model_size}, language={language})")
             transcriber = self.model_manager.get_transcriber(model_size)
             result = transcriber.transcribe(audio, language=language)
 
@@ -56,11 +57,13 @@ class TranscriptionService:
                 logger.error(f"Transcription returned error: {result}")
                 raise TranscriptionError("transcription.error.generic", error=result)
 
+            logger.info("Transcription completed successfully")
             return result
         except TranscriptionError:
+            # Already logged in the specific case above, re-raise
             raise
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Transcription failed: {error_msg}")
-            traceback.print_exc()
+            logger.debug(traceback.format_exc())
             raise TranscriptionError("transcription.error.generic", error=error_msg) from e

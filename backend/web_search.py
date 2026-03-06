@@ -10,7 +10,6 @@ All logging is done through the centralized logger.
 """
 
 import asyncio
-import random
 import time
 from typing import List, Dict, Optional
 from asyncddgs import aDDGS
@@ -99,6 +98,7 @@ class WebSearch:
 
         except Exception as e:
             logger.error(f"Search failed: {e}")
+            # Attempt fallback
             return await self._fallback_search(query, max_results)
 
     async def _fallback_search(self, query: str, max_results: int) -> List[Dict[str, str]]:
@@ -119,6 +119,7 @@ class WebSearch:
                 )
                 # Simple parsing would go here; for now return a dummy result
                 # In practice, use BeautifulSoup
+                logger.warning("Fallback search returned dummy result (parsing not implemented)")
                 return [{
                     "title": "Result via fallback",
                     "url": "https://duckduckgo.com",

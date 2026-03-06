@@ -102,9 +102,12 @@ class DeepSeekClient:
             content = result["choices"][0]["message"]["content"]
             logger.debug("Received response from DeepSeek")
             return content
+        except requests.exceptions.Timeout:
+            logger.error("DeepSeek API request timed out")
+            return "[Error: Request timed out]"
         except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {e}")
+            logger.error(f"DeepSeek API request failed: {e}")
             return f"[Error: {e}]"
         except (KeyError, ValueError) as e:
-            logger.error(f"Failed to parse API response: {e}")
+            logger.error(f"Failed to parse DeepSeek API response: {e}")
             return f"[Error: {e}]"

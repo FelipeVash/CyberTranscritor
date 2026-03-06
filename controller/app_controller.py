@@ -1,7 +1,7 @@
 # controller/app_controller.py
 """
 Main application controller. Orchestrates backend services, UI updates, and D-Bus communication.
-All logging is done through the centralized logger module.
+All logging is done through the centralized logger.
 """
 
 from tkinter import ttk
@@ -183,6 +183,7 @@ class AppController:
                 except Exception as e:
                     logger.error(f"Error processing command {cmd[0]}: {e}")
                     traceback.print_exc()
+                    self.show_error(_("dialogs.common.error"), str(e))
         except queue.Empty:
             pass
 
@@ -301,12 +302,14 @@ class AppController:
                 )
                 self.root.after(0, lambda: self.display_transcription(text))
             except TranscriptionError as e:
+                logger.error(f"Transcription error: {e}")
                 self.root.after(0, lambda: self.show_error(
                     _("dialogs.common.error"),
                     _(e.key, **e.kwargs)
                 ))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
             except Exception as e:
+                logger.error(f"Unexpected transcription error: {e}")
                 self.root.after(0, lambda: self.show_error(
                     _("dialogs.common.error"),
                     f"Unexpected error: {e}"
@@ -343,12 +346,14 @@ class AppController:
                 self.root.after(0, lambda: self.insert_translation(target, translated))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
             except TranslationError as e:
+                logger.error(f"Translation error: {e}")
                 self.root.after(0, lambda e=e: self.show_error(
                     _("dialogs.common.error"),
                     _(e.key, **e.kwargs)
                 ))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
             except Exception as e:
+                logger.error(f"Unexpected translation error: {e}")
                 self.root.after(0, lambda e=e: self.show_error(
                     _("dialogs.common.error"),
                     str(e)
@@ -437,10 +442,14 @@ class AppController:
         filename = f"transcription_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(text)
-        logger.info(f"Transcription saved to {filepath}")
-        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(text)
+            logger.info(f"Transcription saved to {filepath}")
+            self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
+        except Exception as e:
+            logger.error(f"Failed to save transcription: {e}")
+            self.show_error(_("dialogs.common.error"), str(e))
 
     def save_translations(self):
         """Save all translations to a file."""
@@ -452,10 +461,14 @@ class AppController:
         filename = f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(text)
-        logger.info(f"Translations saved to {filepath}")
-        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(text)
+            logger.info(f"Translations saved to {filepath}")
+            self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
+        except Exception as e:
+            logger.error(f"Failed to save translations: {e}")
+            self.show_error(_("dialogs.common.error"), str(e))
 
     def open_deepseek_window(self):
         """Open or restore the DeepSeek query window."""

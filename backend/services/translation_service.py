@@ -48,28 +48,31 @@ class TranslationService:
             TranslationError: if translation fails
         """
         if not text or not text.strip():
+            logger.debug("Empty text, returning empty string")
             return ""
 
         try:
+            logger.debug(f"Starting translation: {source_lang} -> {target_lang}")
             translator = self.model_manager.get_translator(source_lang, target_lang)
             result = translator.translate(text)
 
             # Check if result indicates an error
-            if result.startswith("[Erro:") or result.startswith("❌"):
+            if result.startswith("[Error:") or result.startswith("❌"):
                 logger.error(f"Translation returned error: {result}")
                 raise TranslationError("translation.error.generic",
                                       source=source_lang,
                                       target=target_lang,
                                       error=result)
 
-            logger.debug(f"Translation completed: {source_lang}->{target_lang}")
+            logger.info(f"Translation completed: {source_lang} -> {target_lang}")
             return result
         except TranslationError:
+            # Already logged, re-raise
             raise
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Translation failed ({source_lang}->{target_lang}): {error_msg}")
-            traceback.print_exc()
+            logger.debug(traceback.format_exc())
             raise TranslationError("translation.error.generic",
                                   source=source_lang,
                                   target=target_lang,

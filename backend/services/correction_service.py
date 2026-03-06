@@ -39,18 +39,23 @@ class CorrectionService:
             Corrected string.
 
         Raises:
-            CorrectionError: if correction fails
+            CorrectionError: if correction fails and should be reported to user
         """
         if not text or not text.strip():
+            logger.debug("Empty text, returning as is")
             return text
 
         try:
+            logger.debug(f"Starting grammar correction (lang={lang})")
             corrected = correct_text(text, lang)
-            logger.debug(f"Correction completed for language '{lang}'")
+            if corrected != text:
+                logger.info("Text corrected successfully")
+            else:
+                logger.debug("No corrections needed")
             return corrected
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Grammar correction failed: {error_msg}")
-            traceback.print_exc()
-            # Return original text as fallback (non-critical feature)
-            return text
+            logger.debug(traceback.format_exc())
+            # Since correction is non-critical, we raise an exception to allow UI to show error
+            raise CorrectionError("correction.error.generic", error=error_msg) from e
