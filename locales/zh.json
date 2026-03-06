@@ -5,8 +5,29 @@
   },
   "main_window": {
     "title": "赛博朋克转录工作室",
+    "menu": {
+      "file": "文件",
+      "edit": "编辑",
+      "tools": "工具",
+      "help": "帮助",
+      "file_menu": {
+        "save_transcription": "保存转录",
+        "save_translations": "保存翻译",
+        "exit": "退出"
+      },
+      "edit_menu": {
+        "correct_transcription": "纠正转录",
+        "correct_translation": "纠正翻译"
+      },
+      "tools_menu": {
+        "settings": "设置",
+        "open_deepseek": "打开DeepSeek"
+      },
+      "help_menu": {
+        "about": "关于"
+      }
+    },
     "controls": {
-      "ui_language": "界面语言",
       "frame_title": "⚡ 控制",
       "model": "模型:",
       "device": "设备:",
@@ -33,13 +54,13 @@
       }
     },
     "format_toolbar": {
-      "bold": "粗体 (Ctrl+B)",
+      "bold": "粗",
       "bold_tooltip": "粗体 (Ctrl+B)",
-      "italic": "斜体 (Ctrl+I)",
+      "italic": "斜",
       "italic_tooltip": "斜体 (Ctrl+I)",
-      "underline": "下划线 (Ctrl+U)",
+      "underline": "下",
       "underline_tooltip": "下划线 (Ctrl+U)",
-      "strike": "删除线",
+      "strike": "删",
       "strike_tooltip": "删除线",
       "font_size": "字号 ▼",
       "font_size_tooltip": "更改字体大小（整个文本）",
@@ -104,8 +125,31 @@
       "source_language": "音频语言 (用于转录)",
       "target_language": "目标翻译语言",
       "rec_indicator": "录音状态",
-      "status_bar": "状态栏",
-      "ui_language": "选择界面语言"
+      "status_bar": "状态栏"
+    }
+  },
+  "settings_window": {
+    "title": "设置",
+    "labels": {
+        "ui_language": "界面语言:",
+        "whisper_model": "Whisper模型:",
+        "device": "设备:",
+        "tts_voice": "TTS语音:",
+        "translation_model": "翻译模型:",
+        "idle_timeout": "空闲超时 (秒):"
+    },
+    "tooltips": {
+        "ui_language": "选择界面语言",
+        "whisper_model": "转录模型 (越大越精确，但速度越慢)",
+        "device": "推理设备 (推荐GPU)",
+        "tts_voice": "选择语音合成的声音",
+        "translation_model": "翻译模型 (越大越精确，但速度越慢)",
+        "idle_timeout": "无操作多长时间后从GPU卸载模型"
+    },
+    "buttons": {
+        "ok": "确定",
+        "apply": "应用",
+        "cancel": "取消"
     }
   },
   "deepseek_window": {
@@ -177,6 +221,19 @@
       "ok": "确定",
       "cancel": "取消",
       "choose_color": "选择颜色"
+    },
+    "about": {
+      "title": "关于赛博朋克转录工作室",
+      "version": "版本 1.0.0",
+      "description": "一个注重隐私的转录应用程序，本地运行模型。",
+      "license": "使用MIT许可证"
+    },
+    "close_dialog": {
+      "title": "退出还是最小化？",
+      "message": "您是要退出应用程序还是将其最小化到系统托盘？",
+      "minimize": "最小化到托盘",
+      "exit": "退出",
+      "cancel": "取消"
     }
   },
   "tray": {

@@ -11,6 +11,18 @@ from utils.logger import logger
 
 CONFIG_FILE = Path.home() / ".transcritor_config.json"
 
+# Default configuration values
+DEFAULT_CONFIG = {
+    "model_size": "large",
+    "device": "cuda",
+    "source_language": "pt",
+    "target_language": "en",
+    "ui_language": "en",
+    "tts_voice": "pt_BR-faber-medium",
+    "translation_model": "nllb-3.3B",
+    "idle_timeout": 60  # seconds
+}
+
 def load_config():
     """
     Load saved configuration, or return default values if file doesn't exist.
@@ -18,26 +30,21 @@ def load_config():
     Returns:
         Dictionary with configuration keys and values.
     """
-    default = {
-        "model_size": "tiny",
-        "device": "cuda",
-        "source_language": "pt",
-        "target_language": "en"
-    }
+    config = DEFAULT_CONFIG.copy()
 
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, "r") as f:
                 saved = json.load(f)
-                # Update default with saved values (preserve any new keys)
-                default.update(saved)
+                # Update config with saved values, preserving defaults for missing keys
+                config.update(saved)
                 logger.debug(f"Configuration loaded from {CONFIG_FILE}")
         except Exception as e:
             logger.error(f"Error loading configuration: {e}")
     else:
         logger.debug("No configuration file found, using defaults")
 
-    return default
+    return config
 
 def save_config(config_dict):
     """

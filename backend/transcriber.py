@@ -1,7 +1,7 @@
 # backend/transcriber.py
 """
 Audio transcription module using Whisper models via Hugging Face Transformers.
-Supports GPU (CUDA/ROCm) and CPU.
+Supports GPU (CUDA/ROCm) with half precision (float16) for performance.
 All logging is done through the centralized logger.
 """
 
@@ -16,7 +16,7 @@ from utils.logger import logger
 
 class TranscriberGPU:
     """
-    Whisper-based transcriber with GPU support.
+    Whisper-based transcriber with GPU support and half precision.
     Loads the model once and reuses it for multiple transcriptions.
     """
 
@@ -32,15 +32,19 @@ class TranscriberGPU:
         if (device or config.DEVICE) == "cuda" and torch.cuda.is_available():
             self.device = 0
             self.device_name = "cuda"
+            self.torch_dtype = torch.float16
         else:
             self.device = -1
             self.device_name = "cpu"
+            self.torch_dtype = torch.float32
 
-        logger.info(f"Loading Whisper-{self.model_size} on {self.device_name.upper()}")
+        logger.info(f"Loading Whisper-{self.model_size} on {self.device_name.upper()} "
+                    f"with dtype={self.torch_dtype}")
         self.pipe = pipeline(
             "automatic-speech-recognition",
             model=f"openai/whisper-{self.model_size}",
-            device=self.device
+            device=self.device,
+            model_kwargs={"torch_dtype": self.torch_dtype}
         )
         logger.info("Model loaded successfully")
 

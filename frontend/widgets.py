@@ -1,7 +1,7 @@
 # frontend/widgets.py
 """
-Custom reusable widgets for the application.
-Provides a formatting toolbar with buttons for text styling.
+Formatting toolbar for text widgets.
+Provides buttons for bold, italic, underline, etc.
 All logging is done through the centralized logger.
 """
 
@@ -17,29 +17,15 @@ from utils.i18n import _
 from utils.logger import logger
 
 class FormatToolbar(ttk.Frame):
-    """
-    Reusable formatting toolbar with two rows of buttons.
-    Provides text styling (bold, italic, underline, etc.), alignment,
-    lists, tables, and HTML import/export.
-    """
+    """Formatting toolbar with two rows of buttons."""
 
     def __init__(self, parent, text_widget, app, *args, **kwargs):
-        """
-        Initialize the toolbar.
-
-        Args:
-            parent: Parent widget
-            text_widget: The scrolled text widget to apply formatting to
-            app: Reference to the main application (for list numbering)
-        """
         super().__init__(parent, *args, **kwargs)
         self.text_widget = text_widget
         self.app = app
         self._create_widgets()
-        logger.debug("FormatToolbar created")
 
     def _create_widgets(self):
-        """Create and arrange all toolbar buttons."""
         # First row
         row1 = ttk.Frame(self)
         row1.pack(fill="x", pady=(0,2))
@@ -48,29 +34,29 @@ class FormatToolbar(ttk.Frame):
         row2.pack(fill="x")
 
         # ========== ROW 1 ==========
-        # Bold
-        btn_bold = ttk.Button(row1, text=_("main_window.format_toolbar.bold"), width=3, style="Cyan.TButton",
+        # Bold (with bold font style)
+        btn_bold = ttk.Button(row1, text=_("main_window.format_toolbar.bold"), width=3, style="Bold.TButton",
                               command=lambda: apply_tag(self.text_widget, "bold"))
         btn_bold.pack(side=tk.LEFT, padx=1)
         btn_bold.i18n_key = "main_window.format_toolbar.bold"
         ToolTip(btn_bold, text_key="main_window.format_toolbar.bold_tooltip")
 
-        # Italic
-        btn_italic = ttk.Button(row1, text=_("main_window.format_toolbar.italic"), width=3, style="Cyan.TButton",
+        # Italic (with italic font style)
+        btn_italic = ttk.Button(row1, text=_("main_window.format_toolbar.italic"), width=3, style="Italic.TButton",
                                 command=lambda: apply_tag(self.text_widget, "italic"))
         btn_italic.pack(side=tk.LEFT, padx=1)
         btn_italic.i18n_key = "main_window.format_toolbar.italic"
         ToolTip(btn_italic, text_key="main_window.format_toolbar.italic_tooltip")
 
-        # Underline
-        btn_underline = ttk.Button(row1, text=_("main_window.format_toolbar.underline"), width=3, style="Cyan.TButton",
+        # Underline (with underline font style)
+        btn_underline = ttk.Button(row1, text=_("main_window.format_toolbar.underline"), width=3, style="Underline.TButton",
                                    command=lambda: apply_tag(self.text_widget, "underline"))
         btn_underline.pack(side=tk.LEFT, padx=1)
         btn_underline.i18n_key = "main_window.format_toolbar.underline"
         ToolTip(btn_underline, text_key="main_window.format_toolbar.underline_tooltip")
 
-        # Strikethrough
-        btn_strike = ttk.Button(row1, text=_("main_window.format_toolbar.strike"), width=3, style="Cyan.TButton",
+        # Strike (no special font style available for overstrike, so use Cyan.TButton)
+        btn_strike = ttk.Button(row1, text=_("main_window.format_toolbar.strike"), width=3, style="Strike.TButton",
                                 command=lambda: apply_tag(self.text_widget, "overstrike"))
         btn_strike.pack(side=tk.LEFT, padx=1)
         btn_strike.i18n_key = "main_window.format_toolbar.strike"
@@ -79,7 +65,7 @@ class FormatToolbar(ttk.Frame):
         # Spacer
         ttk.Label(row1, text=" ").pack(side=tk.LEFT)
 
-        # Font size menu
+        # Font size
         font_sizes = [10, 12, 14, 16, 18, 20, 24]
         font_menu = tb.Menubutton(row1, text=_("main_window.format_toolbar.font_size"), bootstyle="secondary")
         font_menu.pack(side=tk.LEFT, padx=5)
@@ -105,14 +91,14 @@ class FormatToolbar(ttk.Frame):
         # Spacer
         ttk.Label(row1, text="  ").pack(side=tk.LEFT)
 
-        # Heading style
+        # Heading
         btn_heading = ttk.Button(row1, text=_("main_window.format_toolbar.heading"), width=3, style="Cyan.TButton",
                                  command=lambda: apply_tag(self.text_widget, "heading"))
         btn_heading.pack(side=tk.LEFT, padx=1)
         btn_heading.i18n_key = "main_window.format_toolbar.heading"
         ToolTip(btn_heading, text_key="main_window.format_toolbar.heading_tooltip")
 
-        # Insert date/time
+        # Datetime
         btn_datetime = ttk.Button(row1, text=_("main_window.format_toolbar.datetime"), width=3, style="Cyan.TButton",
                                   command=lambda: insert_datetime(self.text_widget))
         btn_datetime.pack(side=tk.LEFT, padx=1)
@@ -185,7 +171,7 @@ class FormatToolbar(ttk.Frame):
         # Spacer
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
-        # Insert table
+        # Table
         btn_table = ttk.Button(row2, text=_("main_window.format_toolbar.table"), width=3, style="Cyan.TButton",
                                command=lambda: insert_table(self.text_widget))
         btn_table.pack(side=tk.LEFT, padx=1)
@@ -196,14 +182,14 @@ class FormatToolbar(ttk.Frame):
         ttk.Label(row2, text="  ").pack(side=tk.LEFT)
 
         # Export HTML
-        btn_export_html = ttk.Button(row2, text=_("main_window.format_toolbar.export_html"), width=5, style="Cyan.TButton",
+        btn_export_html = ttk.Button(row2, text=_("main_window.format_toolbar.export_html"), width=8, style="Cyan.TButton",
                                      command=lambda: export_html(self.text_widget))
         btn_export_html.pack(side=tk.LEFT, padx=1)
         btn_export_html.i18n_key = "main_window.format_toolbar.export_html"
         ToolTip(btn_export_html, text_key="main_window.format_toolbar.export_html_tooltip")
 
         # Import HTML
-        btn_import_html = ttk.Button(row2, text=_("main_window.format_toolbar.import_html"), width=6, style="Cyan.TButton",
+        btn_import_html = ttk.Button(row2, text=_("main_window.format_toolbar.import_html"), width=8, style="Cyan.TButton",
                                      command=lambda: import_html(self.text_widget))
         btn_import_html.pack(side=tk.LEFT, padx=1)
         btn_import_html.i18n_key = "main_window.format_toolbar.import_html"

@@ -5,8 +5,29 @@
   },
   "main_window": {
     "title": "Studio de Transcrição Cyberpunk",
+    "menu": {
+      "file": "Arquivo",
+      "edit": "Editar",
+      "tools": "Ferramentas",
+      "help": "Ajuda",
+      "file_menu": {
+        "save_transcription": "Salvar transcrição",
+        "save_translations": "Salvar traduções",
+        "exit": "Sair"
+      },
+      "edit_menu": {
+        "correct_transcription": "Corrigir transcrição",
+        "correct_translation": "Corrigir tradução"
+      },
+      "tools_menu": {
+        "settings": "Configurações",
+        "open_deepseek": "Abrir DeepSeek"
+      },
+      "help_menu": {
+        "about": "Sobre"
+      }
+    },
     "controls": {
-      "ui_language": "Idioma da interface",
       "frame_title": "⚡ CONTROLES",
       "model": "Modelo:",
       "device": "Dispositivo:",
@@ -33,13 +54,13 @@
       }
     },
     "format_toolbar": {
-      "bold": "Negrito (Ctrl+B)",
+      "bold": "N",
       "bold_tooltip": "Negrito (Ctrl+B)",
-      "italic": "Itálico (Ctrl+I)",
+      "italic": "I",
       "italic_tooltip": "Itálico (Ctrl+I)",
-      "underline": "Sublinhado (Ctrl+U)",
+      "underline": "S",
       "underline_tooltip": "Sublinhado (Ctrl+U)",
-      "strike": "Tachado",
+      "strike": "T",
       "strike_tooltip": "Tachado",
       "font_size": "Tamanho ▼",
       "font_size_tooltip": "Alterar tamanho da fonte (todo o texto)",
@@ -69,7 +90,7 @@
       "table_tooltip": "Inserir tabela simples 3x2",
       "export_html": "HTML",
       "export_html_tooltip": "Exportar conteúdo como HTML (texto puro)",
-      "import_html": "IMPORT",
+      "import_html": "Importar",
       "import_html_tooltip": "Importar de arquivo HTML (extrai texto puro)"
     },
     "tabs": {
@@ -104,8 +125,31 @@
       "source_language": "Idioma do áudio (para transcrição)",
       "target_language": "Idioma de destino para tradução",
       "rec_indicator": "Status da gravação",
-      "status_bar": "Barra de status",
-      "ui_language": "Selecionar idioma da interface"
+      "status_bar": "Barra de status"
+    }
+  },
+  "settings_window": {
+    "title": "Configurações",
+    "labels": {
+        "ui_language": "Idioma da interface:",
+        "whisper_model": "Modelo Whisper:",
+        "device": "Dispositivo:",
+        "tts_voice": "Voz TTS:",
+        "translation_model": "Modelo de tradução:",
+        "idle_timeout": "Tempo de inatividade (segundos):"
+    },
+    "tooltips": {
+        "ui_language": "Selecionar idioma da interface",
+        "whisper_model": "Modelo para transcrição (maior = mais preciso, porém mais lento)",
+        "device": "Dispositivo para inferência (GPU recomendada)",
+        "tts_voice": "Escolher a voz para síntese de fala",
+        "translation_model": "Modelo para tradução (maior = mais preciso, porém mais lento)",
+        "idle_timeout": "Tempo sem uso antes de descarregar modelos da GPU"
+    },
+    "buttons": {
+        "ok": "OK",
+        "apply": "Aplicar",
+        "cancel": "Cancelar"
     }
   },
   "deepseek_window": {
@@ -177,6 +221,19 @@
       "ok": "OK",
       "cancel": "Cancelar",
       "choose_color": "Escolha uma cor"
+    },
+    "about": {
+      "title": "Sobre o Studio de Transcrição Cyberpunk",
+      "version": "Versão 1.0.0",
+      "description": "Um aplicativo de transcrição com foco em privacidade, rodando modelos localmente.",
+      "license": "Licenciado sob MIT License"
+    },
+    "close_dialog": {
+      "title": "Sair ou minimizar?",
+      "message": "Deseja realmente sair do aplicativo ou minimizá-lo para a bandeja?",
+      "minimize": "Minimizar",
+      "exit": "Sair",
+      "cancel": "Cancelar"
     }
   },
   "tray": {

@@ -18,7 +18,7 @@ class ModelManager:
     Maintains a single instance per model type and unloads after inactivity.
     """
 
-    def __init__(self, device="cuda", idle_timeout=60):  # 60 seconds default
+    def __init__(self, device="cuda", idle_timeout=60):
         """
         Initialize the model manager.
 
@@ -34,7 +34,6 @@ class ModelManager:
         self.current_transcriber_model = None
         self.current_translator = None
         self.current_translator_pair = (None, None)
-        self.current_translator_model_size = None
 
         # Unload timer
         self.unload_timer = None
@@ -92,14 +91,13 @@ class ModelManager:
                 self.current_transcriber_model = model_size
             return self.current_transcriber
 
-    def get_translator(self, source_lang="pt", target_lang="en", model_size="nllb-3.3B"):
+    def get_translator(self, source_lang="pt", target_lang="en"):
         """
         Return the translator, loading if needed or if parameters changed.
 
         Args:
             source_lang: Source language code
             target_lang: Target language code
-            model_size: Translation model size (currently unused, kept for compatibility)
 
         Returns:
             Translator instance

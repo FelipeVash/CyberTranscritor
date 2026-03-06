@@ -1,6 +1,7 @@
 # controller/app_controller.py
 """
-Main application controller. Orchestrates backend services, UI updates, and D-Bus communication.
+Main application controller.
+Orchestrates backend services, UI updates, and D-Bus communication.
 All logging is done through the centralized logger.
 """
 
@@ -12,6 +13,7 @@ import traceback
 from pathlib import Path
 import sys
 import torch
+import re
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -22,10 +24,10 @@ from backend.audio.recorder import AudioRecorder
 from backend.audio.player import AudioPlayer
 from backend.services.transcription_service import TranscriptionService, TranscriptionError
 from backend.services.translation_service import TranslationService, TranslationError
-from backend.services.correction_service import CorrectionService, CorrectionError
+from backend.services.correction_service import CorrectionService
 from backend.background.background_recorder import BackgroundRecorder
 from frontend.deepseek_window import DeepSeekWindow
-from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES
+from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES, TTS_VOICES, TRANSLATION_MODELS
 from utils.config_persistence import load_config, save_config
 from utils.i18n import _, set_language, get_current_language, get_available_languages
 from backend.dbus.dbus_service import DBusService
@@ -48,9 +50,14 @@ class AppController:
         self._current_language = self.config.get("source_language", "pt")
         self._translate_target = self.config.get("target_language", "en")
         self._ui_language = self.config.get("ui_language", get_current_language())
+        self._tts_voice = self.config.get("tts_voice", "pt_BR-faber-medium")
+        self._translation_model = self.config.get("translation_model", "nllb-3.3B")
+        self._idle_timeout = self.config.get("idle_timeout", 60)
 
         self.all_languages = ALL_LANGUAGES
         self.all_language_names = ALL_LANGUAGE_NAMES
+        self.tts_voices = TTS_VOICES
+        self.translation_models = TRANSLATION_MODELS
 
         # Internal state
         self.is_recording = False
@@ -61,9 +68,10 @@ class AppController:
 
         # Services
         logger.debug("Initializing services")
-        self.model_manager = ModelManager(device=self._device)
+        self.model_manager = ModelManager(device=self._device, idle_timeout=self._idle_timeout)
         self.deepseek_client = DeepSeekClient()
         self.audio_player = AudioPlayer()
+        # TTS engine will be created per DeepSeek window
         self.transcription_service = TranscriptionService(self.model_manager)
         self.translation_service = TranslationService(self.model_manager)
         self.correction_service = CorrectionService()
@@ -84,6 +92,9 @@ class AppController:
         self.current_language = None
         self.translate_target = None
         self.ui_language = None
+        self.tts_voice = None
+        self.translation_model = None
+        self.idle_timeout = None
 
         # Queue for D-Bus commands (to be processed safely in the main thread)
         self.dbus_queue = queue.Queue()
@@ -106,9 +117,17 @@ class AppController:
         self.current_language = tk.StringVar(root, value=self._current_language)
         self.translate_target = tk.StringVar(root, value=self._translate_target)
         self.ui_language = tk.StringVar(root, value=self._ui_language)
+        self.tts_voice = tk.StringVar(root, value=self._tts_voice)
+        self.translation_model = tk.StringVar(root, value=self._translation_model)
+        self.idle_timeout = tk.StringVar(root, value=str(self._idle_timeout))
 
         # Trace language changes
         self.ui_language.trace('w', self._on_language_change)
+
+        # Trace configuration changes (optional, could update services on the fly)
+        self.tts_voice.trace('w', self._on_tts_voice_change)
+        self.translation_model.trace('w', self._on_translation_model_change)
+        self.idle_timeout.trace('w', self._on_idle_timeout_change)
 
     # ==================== PROPERTIES ====================
 
@@ -152,23 +171,6 @@ class AppController:
             self.progress_bar.pack_forget()
         if text:
             self.status_var.set(text)
-
-    # ==================== CENTRALIZED ERROR HANDLING ====================
-
-    def _handle_service_error(self, exception, user_message_key=None, **kwargs):
-        """
-        Centralized error handling for service operations.
-
-        Args:
-            exception: The exception that occurred.
-            user_message_key: i18n key for the message to show to the user.
-            **kwargs: Additional parameters for the i18n message.
-        """
-        logger.error(f"Service error: {exception}", exc_info=True)
-        if user_message_key:
-            self.show_error(_("dialogs.common.error"), _(user_message_key, **kwargs))
-        else:
-            self.show_error(_("dialogs.common.error"), str(exception))
 
     # ==================== D-BUS QUEUE PROCESSING ====================
 
@@ -232,13 +234,12 @@ class AppController:
             logger.info("Starting background recording")
             self.background_recorder.start()
 
-    # ==================== LANGUAGE CHANGE ====================
+    # ==================== CONFIGURATION CHANGE HANDLERS ====================
 
     def _on_language_change(self, *args):
         """Callback triggered when UI language is changed."""
         selected = self.ui_language.get()
         # Extract code from parentheses, e.g. "Português (pt)" -> "pt"
-        import re
         match = re.search(r'\(([^)]+)\)', selected)
         if match:
             code = match.group(1)
@@ -247,6 +248,30 @@ class AppController:
             self.update_ui_language()
         else:
             logger.error(f"Invalid language format: {selected}")
+
+    def _on_tts_voice_change(self, *args):
+        """Callback when TTS voice is changed (placeholder for future dynamic updates)."""
+        new_voice = self.tts_voice.get()
+        logger.info(f"TTS voice changed to: {new_voice}")
+        # In the future, we could update the global TTS engine if we had one
+        # For now, just log the change
+
+    def _on_translation_model_change(self, *args):
+        """Callback when translation model is changed (placeholder)."""
+        new_model = self.translation_model.get()
+        logger.info(f"Translation model changed to: {new_model}")
+        # Future: could reload translator with new model size
+
+    def _on_idle_timeout_change(self, *args):
+        """Callback when idle timeout is changed."""
+        try:
+            new_timeout = int(self.idle_timeout.get())
+            logger.info(f"Idle timeout changed to: {new_timeout} seconds")
+            self.model_manager.idle_timeout = new_timeout
+        except ValueError:
+            logger.error(f"Invalid idle timeout value: {self.idle_timeout.get()}")
+
+    # ==================== LANGUAGE UPDATE ====================
 
     def update_ui_language(self):
         """Update all UI texts to the current language."""
@@ -278,6 +303,23 @@ class AppController:
             name = _("common.languages." + code)
             options.append(f"{name} ({code})")
         return options
+
+    # ==================== CENTRALIZED ERROR HANDLING ====================
+
+    def _handle_service_error(self, exception, user_message_key=None, **kwargs):
+        """
+        Centralized error handling for service operations.
+
+        Args:
+            exception: The exception that occurred.
+            user_message_key: i18n key for the message to show to the user.
+            **kwargs: Additional parameters for the i18n message.
+        """
+        logger.error(f"Service error: {exception}", exc_info=True)
+        if user_message_key:
+            self.show_error(_("dialogs.common.error"), _(user_message_key, **kwargs))
+        else:
+            self.show_error(_("dialogs.common.error"), str(exception))
 
     # ==================== MAIN ACTIONS ====================
 
@@ -354,10 +396,10 @@ class AppController:
                 self.root.after(0, lambda: self.insert_translation(target, translated))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
             except TranslationError as e:
-                self.root.after(0, lambda: self._handle_service_error(e, e.key, **e.kwargs))
+                self.root.after(0, lambda e=e: self._handle_service_error(e, e.key, **e.kwargs))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
             except Exception as e:
-                self.root.after(0, lambda: self._handle_service_error(e))
+                self.root.after(0, lambda e=e: self._handle_service_error(e))
                 self.root.after(0, lambda: self.stop_progress(_("main_window.indicators.error")))
 
         threading.Thread(target=task, daemon=True).start()
@@ -382,11 +424,8 @@ class AppController:
                         target_lang=target
                     )
                     self.root.after(0, lambda l=target, t=translated: self.insert_translation(l, t))
-                except TranslationError as e:
-                    logger.error(f"Translation error for {target}: {e}")
-                    self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
                 except Exception as e:
-                    logger.error(f"Unexpected error for {target}: {e}")
+                    logger.error(f"Translation error for {target}: {e}")
                     self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
             self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
 
@@ -445,14 +484,10 @@ class AppController:
         filename = f"transcription_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
-        try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(text)
-            logger.info(f"Transcription saved to {filepath}")
-            self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
-        except Exception as e:
-            logger.error(f"Failed to save transcription: {e}")
-            self.show_error(_("dialogs.common.error"), str(e))
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(text)
+        logger.info(f"Transcription saved to {filepath}")
+        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def save_translations(self):
         """Save all translations to a file."""
@@ -464,14 +499,10 @@ class AppController:
         filename = f"translations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         filepath = Path(__file__).parent.parent / "transcriptions" / filename
         filepath.parent.mkdir(exist_ok=True)
-        try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(text)
-            logger.info(f"Translations saved to {filepath}")
-            self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
-        except Exception as e:
-            logger.error(f"Failed to save translations: {e}")
-            self.show_error(_("dialogs.common.error"), str(e))
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(text)
+        logger.info(f"Translations saved to {filepath}")
+        self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def open_deepseek_window(self):
         """Open or restore the DeepSeek query window."""
@@ -484,7 +515,8 @@ class AppController:
                 self.deepseek_window = DeepSeekWindow(
                     self.root,
                     self,
-                    audio_player=self.audio_player
+                    audio_player=self.audio_player,
+                    tts_voice=self.tts_voice.get() if self.tts_voice else "pt_BR-faber-medium"
                 )
             except Exception as e:
                 self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
@@ -501,15 +533,57 @@ class AppController:
                 self,
                 initial_prompt=prompt,
                 initial_response=response,
-                audio_player=self.audio_player
+                audio_player=self.audio_player,
+                tts_voice=self.tts_voice.get() if self.tts_voice else "pt_BR-faber-medium"
             )
         except Exception as e:
-            self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
+            self._handle_service_error(e)
 
     def stop_all_audio(self):
         """Stop all audio playback."""
         logger.info("Stopping all audio")
         self.audio_player.stop()
+
+    # ==================== GPU MEMORY USAGE ====================
+
+    def get_gpu_memory_usage(self):
+        """
+        Return GPU memory usage as a string (e.g., "VRAM: 2.3/8.0 GB").
+        Uses rocm-smi for AMD GPUs. Falls back to "N/A" if not available.
+        """
+        try:
+            import subprocess
+            # Try rocm-smi (AMD)
+            result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
+                                     capture_output=True, text=True, timeout=2)
+            if result.returncode == 0:
+                lines = result.stdout.split('\n')
+                total = used = None
+                for line in lines:
+                    if 'VRAM Total' in line:
+                        total = line.split(':')[1].strip().split()[0]  # e.g., "16368 MB"
+                    elif 'VRAM Used' in line:
+                        used = line.split(':')[1].strip().split()[0]
+                if total and used:
+                    total_gb = round(float(total) / 1024, 1)
+                    used_gb = round(float(used) / 1024, 1)
+                    return f"VRAM: {used_gb}/{total_gb} GB"
+            # Fallback to nvidia-smi (NVIDIA) - but only if the command exists
+            # Check if nvidia-smi is available
+            import shutil
+            if shutil.which('nvidia-smi') is not None:
+                result = subprocess.run(['nvidia-smi', '--query-gpu=memory.used,memory.total',
+                                         '--format=csv,noheader,nounits'],
+                                        capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    used, total = result.stdout.strip().split(',')
+                    used_gb = round(float(used) / 1024, 1)
+                    total_gb = round(float(total) / 1024, 1)
+                    return f"VRAM: {used_gb}/{total_gb} GB"
+        except Exception as e:
+            # Log only at debug level and with less noise
+            logger.debug(f"GPU memory query failed (non-critical): {e}")
+        return "VRAM: N/A"
 
     # ==================== BACKGROUND RECORDING (already integrated) ====================
 
@@ -545,11 +619,14 @@ class AppController:
         """Shut down the application, save config, unload models."""
         logger.info("Shutting down application")
         config_dict = {
-            "model_size": self.model_size.get(),
-            "device": self.device.get(),
-            "source_language": self.current_language.get(),
-            "target_language": self.translate_target.get(),
-            "ui_language": self.ui_language.get()
+            "model_size": self.model_size.get() if self.model_size else self._model_size,
+            "device": self.device.get() if self.device else self._device,
+            "source_language": self.current_language.get() if self.current_language else self._current_language,
+            "target_language": self.translate_target.get() if self.translate_target else self._translate_target,
+            "ui_language": self.ui_language.get() if self.ui_language else self._ui_language,
+            "tts_voice": self.tts_voice.get() if self.tts_voice else self._tts_voice,
+            "translation_model": self.translation_model.get() if self.translation_model else self._translation_model,
+            "idle_timeout": int(self.idle_timeout.get()) if self.idle_timeout else self._idle_timeout
         }
         save_config(config_dict)
         self.stop_all_audio()

@@ -5,8 +5,29 @@
   },
   "main_window": {
     "title": "Estudio de Transcripción Cyberpunk",
+    "menu": {
+      "file": "Archivo",
+      "edit": "Editar",
+      "tools": "Herramientas",
+      "help": "Ayuda",
+      "file_menu": {
+        "save_transcription": "Guardar transcripción",
+        "save_translations": "Guardar traducciones",
+        "exit": "Salir"
+      },
+      "edit_menu": {
+        "correct_transcription": "Corregir transcripción",
+        "correct_translation": "Corregir traducción"
+      },
+      "tools_menu": {
+        "settings": "Configuración",
+        "open_deepseek": "Abrir DeepSeek"
+      },
+      "help_menu": {
+        "about": "Acerca de"
+      }
+    },
     "controls": {
-      "ui_language": "Idioma de la interfaz",
       "frame_title": "⚡ CONTROLES",
       "model": "Modelo:",
       "device": "Dispositivo:",
@@ -33,11 +54,11 @@
       }
     },
     "format_toolbar": {
-      "bold": "N (Ctrl+B)",
+      "bold": "N",
       "bold_tooltip": "Negrita (Ctrl+B)",
-      "italic": "C (Ctrl+I)",
+      "italic": "C",
       "italic_tooltip": "Cursiva (Ctrl+I)",
-      "underline": "S (Ctrl+U)",
+      "underline": "S",
       "underline_tooltip": "Subrayado (Ctrl+U)",
       "strike": "T",
       "strike_tooltip": "Tachado",
@@ -69,7 +90,7 @@
       "table_tooltip": "Insertar tabla simple 3x2",
       "export_html": "HTML",
       "export_html_tooltip": "Exportar contenido como HTML (texto plano)",
-      "import_html": "IMPORT",
+      "import_html": "Importar",
       "import_html_tooltip": "Importar desde archivo HTML (extrae texto plano)"
     },
     "tabs": {
@@ -104,8 +125,31 @@
       "source_language": "Idioma del audio (para transcripción)",
       "target_language": "Idioma de destino para traducción",
       "rec_indicator": "Estado de la grabación",
-      "status_bar": "Barra de estado",
-      "ui_language": "Seleccionar idioma de la interfaz"
+      "status_bar": "Barra de estado"
+    }
+  },
+  "settings_window": {
+    "title": "Configuración",
+    "labels": {
+        "ui_language": "Idioma de la interfaz:",
+        "whisper_model": "Modelo Whisper:",
+        "device": "Dispositivo:",
+        "tts_voice": "Voz TTS:",
+        "translation_model": "Modelo de traducción:",
+        "idle_timeout": "Tiempo de inactividad (segundos):"
+    },
+    "tooltips": {
+        "ui_language": "Seleccionar idioma de la interfaz",
+        "whisper_model": "Modelo para transcripción (más grande = más preciso, pero más lento)",
+        "device": "Dispositivo para inferencia (GPU recomendada)",
+        "tts_voice": "Elegir la voz para síntesis de habla",
+        "translation_model": "Modelo para traducción (más grande = más preciso, pero más lento)",
+        "idle_timeout": "Tiempo sin uso antes de descargar modelos de la GPU"
+    },
+    "buttons": {
+        "ok": "Aceptar",
+        "apply": "Aplicar",
+        "cancel": "Cancelar"
     }
   },
   "deepseek_window": {
@@ -177,6 +221,19 @@
       "ok": "Aceptar",
       "cancel": "Cancelar",
       "choose_color": "Elige un color"
+    },
+    "about": {
+      "title": "Acerca de Estudio de Transcripción Cyberpunk",
+      "version": "Versión 1.0.0",
+      "description": "Una aplicación de transcripción centrada en la privacidad, ejecutando modelos localmente.",
+      "license": "Licenciado bajo MIT License"
+    },
+    "close_dialog": {
+      "title": "¿Salir o minimizar?",
+      "message": "¿Desea salir de la aplicación o minimizarla a la bandeja del sistema?",
+      "minimize": "Minimizar",
+      "exit": "Salir",
+      "cancel": "Cancelar"
     }
   },
   "tray": {

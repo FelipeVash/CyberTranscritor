@@ -1,7 +1,7 @@
 # frontend/dialogs.py
 """
 Custom dialog windows for the application.
-Currently provides a grammar correction dialog with real-time processing.
+Currently provides a grammar correction dialog and a close confirmation dialog.
 All logging is done through the centralized logger.
 """
 
@@ -11,6 +11,8 @@ import threading
 from backend.services.correction_service import CorrectionService, CorrectionError
 from utils.i18n import _
 from utils.logger import logger
+
+# ==================== GRAMMAR CORRECTION DIALOG ====================
 
 def show_correction_dialog(parent, title, original_text, callback, lang, correction_service=None):
     """
@@ -97,3 +99,73 @@ def show_correction_dialog(parent, title, original_text, callback, lang, correct
 
     # Start correction in a separate thread
     threading.Thread(target=do_correction, daemon=True).start()
+
+
+# ==================== CLOSE CONFIRMATION DIALOG ====================
+
+def show_close_dialog(parent):
+    """
+    Exibe um diálogo personalizado ao fechar a janela principal.
+    Retorna:
+        'minimize' se o usuário escolher minimizar,
+        'exit' se escolher sair,
+        None se cancelar.
+    """
+    dialog = tk.Toplevel(parent)
+    dialog.title(_("dialogs.close_dialog.title"))
+    dialog.transient(parent)
+    dialog.grab_set()
+    dialog.focus_force()
+    dialog.resizable(False, False)
+
+    # Frame principal com padding
+    main_frame = ttk.Frame(dialog, padding="20")
+    main_frame.pack(fill=tk.BOTH, expand=True)
+
+    # Mensagem
+    label = ttk.Label(main_frame, text=_("dialogs.close_dialog.message"),
+                      wraplength=350, justify=tk.CENTER)
+    label.pack(pady=10, padx=10)
+
+    # Botões
+    btn_frame = ttk.Frame(main_frame)
+    btn_frame.pack(pady=15)
+
+    result = None
+
+    def on_minimize():
+        nonlocal result
+        result = 'minimize'
+        dialog.destroy()
+
+    def on_exit():
+        nonlocal result
+        result = 'exit'
+        dialog.destroy()
+
+    def on_cancel():
+        dialog.destroy()
+
+    btn_minimize = ttk.Button(btn_frame, text=_("dialogs.close_dialog.minimize"),
+                              command=on_minimize, width=10)
+    btn_minimize.pack(side=tk.LEFT, padx=8)
+
+    btn_exit = ttk.Button(btn_frame, text=_("dialogs.close_dialog.exit"),
+                          command=on_exit, width=10)
+    btn_exit.pack(side=tk.LEFT, padx=8)
+
+    btn_cancel = ttk.Button(btn_frame, text=_("dialogs.close_dialog.cancel"),
+                            command=on_cancel, width=10)
+    btn_cancel.pack(side=tk.LEFT, padx=8)
+
+    # Fecha com Escape
+    dialog.bind("<Escape>", lambda e: on_cancel())
+
+    # Centraliza após calcular tamanho
+    dialog.update_idletasks()
+    x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (dialog.winfo_width() // 2)
+    y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (dialog.winfo_height() // 2)
+    dialog.geometry(f"+{x}+{y}")
+
+    parent.wait_window(dialog)
+    return result
