@@ -28,7 +28,7 @@ from backend.services.correction_service import CorrectionService
 from backend.background.background_recorder import BackgroundRecorder
 from frontend.deepseek_window import DeepSeekWindow
 from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES, TTS_VOICES, TRANSLATION_MODELS
-from utils.config_persistence import load_config, save_config
+from utils.config_persistence import load_config, save_config, CONFIG_FILE
 from utils.i18n import _, set_language, get_current_language, get_available_languages
 from backend.dbus.dbus_service import DBusService
 from utils.logger import logger
@@ -42,16 +42,33 @@ class AppController:
     def __init__(self):
         """Initialize controller, load config, set up services and D-Bus."""
         logger.info("Initializing AppController")
+        
+        # Check if config file exists to decide whether to run hardware detection
+        config_file_exists = CONFIG_FILE.exists()
         self.config = load_config()
 
-        # Default values (plain strings) – Tkinter variables will be created later
-        self._model_size = self.config.get("model_size", config.MODEL_SIZE)
-        self._device = self.config.get("device", config.DEVICE)
+        if not config_file_exists:
+            # First run: use hardware detection to set optimal defaults
+            from utils.hardware_detector import get_recommended_settings
+            rec = get_recommended_settings()
+            self._device = rec["device"]
+            self._model_size = rec["model_size"]
+            self._translation_model = rec["translation_model"]
+            self._tts_voice = rec["tts_voice"]
+            # Update config dict and save immediately
+            self.config.update(rec)
+            save_config(self.config)
+            logger.info(f"First run – hardware detection applied: device={self._device}, model={self._model_size}")
+        else:
+            # Use saved values
+            self._device = self.config.get("device", config.DEVICE)
+            self._model_size = self.config.get("model_size", config.MODEL_SIZE)
+            self._translation_model = self.config.get("translation_model", "nllb-3.3B")
+            self._tts_voice = self.config.get("tts_voice", "pt_BR-faber-medium")
+
         self._current_language = self.config.get("source_language", "pt")
         self._translate_target = self.config.get("target_language", "en")
         self._ui_language = self.config.get("ui_language", get_current_language())
-        self._tts_voice = self.config.get("tts_voice", "pt_BR-faber-medium")
-        self._translation_model = self.config.get("translation_model", "nllb-3.3B")
         self._idle_timeout = self.config.get("idle_timeout", 60)
 
         self.all_languages = ALL_LANGUAGES
@@ -553,24 +570,24 @@ class AppController:
         """
         try:
             import subprocess
-            # Try rocm-smi (AMD)
-            result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
-                                     capture_output=True, text=True, timeout=2)
-            if result.returncode == 0:
-                lines = result.stdout.split('\n')
-                total = used = None
-                for line in lines:
-                    if 'VRAM Total' in line:
-                        total = line.split(':')[1].strip().split()[0]  # e.g., "16368 MB"
-                    elif 'VRAM Used' in line:
-                        used = line.split(':')[1].strip().split()[0]
-                if total and used:
-                    total_gb = round(float(total) / 1024, 1)
-                    used_gb = round(float(used) / 1024, 1)
-                    return f"VRAM: {used_gb}/{total_gb} GB"
-            # Fallback to nvidia-smi (NVIDIA) - but only if the command exists
-            # Check if nvidia-smi is available
             import shutil
+            # Try rocm-smi (AMD)
+            if shutil.which('rocm-smi') is not None:
+                result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
+                                         capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    total = used = None
+                    for line in lines:
+                        if 'VRAM Total' in line:
+                            total = line.split(':')[1].strip().split()[0]
+                        elif 'VRAM Used' in line:
+                            used = line.split(':')[1].strip().split()[0]
+                    if total and used:
+                        total_gb = round(float(total) / 1024, 1)
+                        used_gb = round(float(used) / 1024, 1)
+                        return f"VRAM: {used_gb}/{total_gb} GB"
+            # Fallback to nvidia-smi (NVIDIA)
             if shutil.which('nvidia-smi') is not None:
                 result = subprocess.run(['nvidia-smi', '--query-gpu=memory.used,memory.total',
                                          '--format=csv,noheader,nounits'],
@@ -581,7 +598,6 @@ class AppController:
                     total_gb = round(float(total) / 1024, 1)
                     return f"VRAM: {used_gb}/{total_gb} GB"
         except Exception as e:
-            # Log only at debug level and with less noise
             logger.debug(f"GPU memory query failed (non-critical): {e}")
         return "VRAM: N/A"
 
