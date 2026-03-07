@@ -29,7 +29,7 @@ jobs:
             python3-gi python3-gi-cairo \
             espeak-ng libespeak-ng-dev \
             ffmpeg libavcodec-extra \
-            python3-dbus
+            python3-dbus libdbus-1-dev libdbus-glib-1-dev
 
       - name: Install Python dependencies
         run: |
@@ -44,4 +44,3 @@ jobs:
         with:
           name: test-log
           path: test_output.log
-          
