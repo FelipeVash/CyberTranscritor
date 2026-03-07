@@ -110,6 +110,8 @@ class AppController:
 
         self.dbus_queue = queue.Queue()
         self.dbus_service = DBusService(self)
+
+        self.model_idle_check_interval = 60  # ou o valor desejado
         logger.info("AppController initialized successfully")
 
     def init_variables(self, root):
@@ -485,6 +487,10 @@ class AppController:
         except Exception as e:
             self._handle_service_error(e)
 
+    def check_model_idle(self):
+        self.model_manager.check_idle()
+        self.root.after(self.model_idle_check_interval, self.check_model_idle)
+
     def stop_all_audio(self):
         logger.info("Stopping all audio")
         self.audio_player.stop()
@@ -499,36 +505,25 @@ class AppController:
             import shutil
             import re
 
-            # --- Tentativa 1: rocm-smi (AMD) ---
+            # Try rocm-smi (AMD)
             if shutil.which('rocm-smi') is not None:
                 logger.debug("Trying rocm-smi")
                 try:
                     result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
-                                            capture_output=True, text=True, timeout=5, check=False)
+                                            capture_output=True, text=True, timeout=2, check=False)
                     if result.returncode == 0:
                         lines = result.stdout.split('\n')
                         total = used = None
                         for line in lines:
-                            if 'VRAM Total Memory (B):' in line:
-                                # Exemplo: "GPU[0]          : VRAM Total Memory (B): 25753026560"
-                                parts = line.split(':')
-                                if len(parts) >= 2:
-                                    value_str = parts[-1].strip()
-                                    try:
-                                        total = float(value_str)
-                                    except ValueError:
-                                        continue
-                            elif 'VRAM Total Used Memory (B):' in line:
-                                parts = line.split(':')
-                                if len(parts) >= 2:
-                                    value_str = parts[-1].strip()
-                                    try:
-                                        used = float(value_str)
-                                    except ValueError:
-                                        continue
-                            if total is not None and used is not None:
-                                break
-
+                            # Procura linhas como: GPU[0]          : VRAM Total Memory (B): 25753026560
+                            if 'VRAM Total Memory' in line:
+                                match = re.search(r':\s*(\d+)', line)
+                                if match:
+                                    total = int(match.group(1))
+                            elif 'VRAM Total Used Memory' in line:
+                                match = re.search(r':\s*(\d+)', line)
+                                if match:
+                                    used = int(match.group(1))
                         if total is not None and used is not None:
                             total_gb = total / (1024**3)
                             used_gb = used / (1024**3)
@@ -538,7 +533,7 @@ class AppController:
                 except Exception as e:
                     logger.debug(f"rocm-smi failed: {e}")
 
-            # --- Tentativa 2: nvidia-smi (NVIDIA) ---
+            # Fallback to nvidia-smi (NVIDIA)
             if shutil.which('nvidia-smi') is not None:
                 logger.debug("Trying nvidia-smi")
                 try:
@@ -555,23 +550,28 @@ class AppController:
                 except Exception as e:
                     logger.debug(f"nvidia-smi failed: {e}")
 
-            # --- Tentativa 3: PyTorch (apenas memória alocada pelo próprio PyTorch) ---
+            # Fallback using torch (total and allocated)
             if torch.cuda.is_available():
                 logger.debug("Trying torch.cuda")
                 try:
                     device = torch.cuda.current_device()
                     total_memory = torch.cuda.get_device_properties(device).total_memory
-                    total_gb = round(total_memory / (1024**3), 1)
+                    total_gb = total_memory / (1024**3)
                     allocated = torch.cuda.memory_allocated(device)
-                    allocated_gb = round(allocated / (1024**3), 1)
+                    allocated_gb = allocated / (1024**3)
                     if allocated_gb > 0:
-                        result_str = f"VRAM: {allocated_gb:.1f}/{total_gb:.1f} GB"
+                        result_str = f"VRAM: {allocated_gb:.1f}/{total_gb:.1f} GB (PyTorch)"
                     else:
                         result_str = f"VRAM: ?/{total_gb:.1f} GB"
                     logger.debug(f"torch result: {result_str}")
                     return result_str
                 except Exception as e:
                     logger.debug(f"torch.cuda query failed: {e}")
+
+        except Exception as e:
+            logger.debug(f"GPU memory query failed: {e}")
+
+        return "VRAM: N/A"
 
         except Exception as e:
             logger.debug(f"GPU memory query failed: {e}")
