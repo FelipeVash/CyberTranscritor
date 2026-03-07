@@ -1,3 +1,12 @@
+# Core dependencies
+torch --index-url https://download.pytorch.org/whl/cpu
+transformers
+sounddevice
+numpy
+ttkbootstrap
+pyxdg
+pygobject
+# Test dependencies (já listadas, mas podem ficar aqui)
 pytest
 pytest-mock
 pytest-cov
