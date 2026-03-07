@@ -4,7 +4,6 @@ sounddevice
 numpy
 ttkbootstrap
 pyxdg
-pygobject
 pytest
 pytest-mock
 pytest-cov
