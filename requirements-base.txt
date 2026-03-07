@@ -5,6 +5,7 @@ numpy
 ttkbootstrap
 pyxdg
 requests
+language_tool_python
 pytest
 pytest-mock
 pytest-cov
