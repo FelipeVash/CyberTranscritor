@@ -11,6 +11,9 @@ onnxruntime
 pydub
 pystray
 Pillow
+asyncddgs
+aiohttp
+httpx
 pytest
 pytest-mock
 pytest-cov
