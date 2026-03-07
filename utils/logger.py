@@ -1,59 +1,53 @@
 # utils/logger.py
-"""
-Logging configuration module for the Transcritor Cyberpunk project.
-Provides a centralized logging setup with file rotation and console output.
-All log messages should be in English to facilitate international collaboration.
-"""
-
 import logging
 import os
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-# Directory where log files will be stored
+# Diretório de logs padrão
 LOG_DIR = Path(__file__).parent.parent / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
-# Main log file path
-LOG_FILE = LOG_DIR / "transcritor.log"
+# Arquivo de log padrão
+DEFAULT_LOG_FILE = LOG_DIR / "transcritor.log"
 
-# Log format: timestamp - level - logger name - message
+# Formato dos logs
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-def setup_logger(name="transcritor", level=logging.DEBUG, log_to_file=True, log_to_console=True):
+def setup_logger(name="transcritor", level=logging.DEBUG, log_to_file=True, log_to_console=True, file_path=None):
     """
-    Configure and return a logger with the specified name.
-    
+    Configura e retorna um logger com o nome especificado.
+    Por padrão, loga para arquivo (com rotação) e para o console.
+
     Args:
-        name: Logger name (usually the module name)
-        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_to_file: If True, log to a rotating file
-        log_to_console: If True, log to console (stderr)
-    
-    Returns:
-        logging.Logger: Configured logger instance
+        name: Nome do logger.
+        level: Nível de log (ex: logging.DEBUG).
+        log_to_file: Se True, envia logs para arquivo.
+        log_to_console: Se True, envia logs para console.
+        file_path: Caminho opcional para o arquivo de log. Se None, usa o padrão.
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.propagate = False  # Prevent duplicate logs from parent loggers
+    logger.propagate = False
 
-    # Remove any existing handlers to avoid duplication when reloading modules
     if logger.hasHandlers():
         logger.handlers.clear()
 
     formatter = logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT)
 
-    # File handler with rotation (max 5 MB, keep 3 backups)
+    # Handler para arquivo
     if log_to_file:
+        log_file = Path(file_path) if file_path else DEFAULT_LOG_FILE
+        log_file.parent.mkdir(exist_ok=True, parents=True)
         file_handler = RotatingFileHandler(
-            LOG_FILE, maxBytes=5_242_880, backupCount=3, encoding='utf-8'
+            log_file, maxBytes=5_242_880, backupCount=3, encoding='utf-8'
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-    # Console handler
+    # Handler para console
     if log_to_console:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
@@ -62,5 +56,5 @@ def setup_logger(name="transcritor", level=logging.DEBUG, log_to_file=True, log_
 
     return logger
 
-# Default global logger instance
+# Logger global padrão
 logger = setup_logger()

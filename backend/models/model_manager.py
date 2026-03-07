@@ -59,7 +59,6 @@ class ModelManager:
                 self.unload_all()
                 self.unload_timer = None
             else:
-                # If not idle yet, restart timer with remaining time
                 remaining = self.idle_timeout - (time.time() - self.last_access)
                 if remaining > 0:
                     self.unload_timer = threading.Timer(remaining, self._unload_if_idle)
@@ -118,6 +117,8 @@ class ModelManager:
                 except Exception as e:
                     logger.error(f"Failed to load translator: {e}")
                     raise
+            else:
+                logger.debug(f"Reusing translator {source_lang} -> {target_lang}")
             return self.current_translator
 
     def unload_transcriber(self):
