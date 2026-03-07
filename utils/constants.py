@@ -39,7 +39,8 @@ FLORES_CODES = {
     "de": "deu_Latn",
     "it": "ita_Latn",
     "ja": "jpn_Jpan",
-    "zh": "zho_Hans"
+    "zh": "zho_Hans",
+    "ko": "kor_Hang"  # Adicionado coreano
 }
 
 # Available Piper TTS voices
@@ -50,14 +51,14 @@ TTS_VOICES = {
     "pt_BR-jeff-medium": "Português (Brasil) - Jeff (médio)",
     "pt_PT-tugao-medium": "Português (Portugal) - Tugão (médio)",
     
-    # Spanish voices [citation:2][citation:3][citation:8]
+    # Spanish voices
     "es_ES-carlfm-x_low": "Espanhol (Espanha) - CarlFM (baixo)",
     "es_ES-davefx-medium": "Espanhol (Espanha) - DaveFX (médio)",
     "es_ES-marta-medium": "Espanhol (Espanha) - Marta (médio)",
     "es_MX-claude-high": "Espanhol (México) - Claude (alto)",
     "es_AR-daniela-high": "Espanhol (Argentina) - Daniela (alto)",
     
-    # Chinese voices [citation:3][citation:5][citation:8]
+    # Chinese voices
     "zh_CN-huayan-medium": "Chinês (China) - Huayan (médio)",
     "zh_CN-huayan-x_low": "Chinês (China) - Huayan (baixo)",
     
@@ -67,12 +68,14 @@ TTS_VOICES = {
     "en_GB-alan-medium": "Inglês (Reino Unido) - Alan (médio)",
     "en_GB-southern_english_female-medium": "Inglês (Reino Unido) - Sul feminino (médio)",
     
+    # Korean voices (if available - check Piper repository)
+    "ko_KR-sunhi-medium": "Coreano (Coreia do Sul) - Sunhi (médio)",
+    
     # Other languages
     "fr_FR-upmc-medium": "Francês (França) - UPMC (médio)",
     "de_DE-thorsten-medium": "Alemão (Alemanha) - Thorsten (médio)",
     "it_IT-paola-medium": "Italiano (Itália) - Paola (médio)",
-    "ja_JP-kyoko-medium": "Japonês (Japão) - Kyoko (médio)",
-    "ko_KR-sunhi-medium": "Coreano (Coreia do Sul) - Sunhi (médio)"
+    "ja_JP-kyoko-medium": "Japonês (Japão) - Kyoko (médio)"
 }
 
 # Available NLLB translation models
