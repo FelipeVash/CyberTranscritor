@@ -5,7 +5,9 @@ import os
 from pathlib import Path
 
 class I18n:
-    """Gerenciador de internacionalização com suporte a chaves aninhadas."""
+    """
+    Gerenciador de internacionalização com suporte a chaves aninhadas.
+    """
     
     def __init__(self, domain="messages", localedir=None):
         self.domain = domain
@@ -15,7 +17,6 @@ class I18n:
         self.load_language(self.current_language)
     
     def _detect_system_language(self):
-        """Detecta o idioma do sistema (ex: pt_BR, en_US, es_ES)."""
         try:
             lang, _ = locale.getdefaultlocale()
             if lang:
@@ -31,7 +32,6 @@ class I18n:
             return 'en'
     
     def load_language(self, lang_code):
-        """Carrega o arquivo de tradução para o idioma especificado."""
         self.current_language = lang_code
         file_path = self.localedir / f"{lang_code}.json"
         
@@ -47,9 +47,6 @@ class I18n:
             self.translations = {}
     
     def get(self, key, **kwargs):
-        # Trata pt-br como pt para common.languages
-        if key.startswith("common.languages.") and "pt-br" in key:
-            key = key.replace("pt-br", "pt")
         keys = key.split('.')
         value = self.translations
         try:
@@ -77,3 +74,11 @@ def get_available_languages():
     localedir = _i18n.localedir
     files = localedir.glob("*.json")
     return [f.stem for f in files]
+
+def get_language_display(code):
+    """
+    Retorna o nome completo do idioma no formato "Nome (código)".
+    Ex: "Português (pt-br)".
+    """
+    name = _("common.languages." + code)
+    return f"{name} ({code})"

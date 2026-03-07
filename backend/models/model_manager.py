@@ -128,6 +128,8 @@ class ModelManager:
                 except Exception as e:
                     logger.error(f"Failed to load translator: {e}")
                     raise
+            else:
+                logger.debug(f"Reusing translator {source_lang} -> {target_lang}")
             return self.current_translator
         
     def check_idle(self):

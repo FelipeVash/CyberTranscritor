@@ -1,4 +1,3 @@
-# frontend/main_window.py
 """
 Main application window.
 Builds the UI and delegates actions to the controller.
@@ -51,13 +50,16 @@ class TranscriptionStudio:
         self.btn_deepseek = None
         self.rec_indicator = None
         self.status_var = None
-        self.vram_var = None
+        self.vram_label = None   # <-- Agora é atributo
         self.progress_bar = None
 
         self.setup_menu()
         self.setup_ui()
         self.check_microphone()
         self.setup_bindings()
+
+        # Inicia VRAM monitoring
+        self.update_vram_display()
 
         # Start system tray icon
         self.tray = TrayIcon(self)
@@ -173,7 +175,7 @@ class TranscriptionStudio:
         target_combo.grid(row=0, column=3, padx=5, pady=5, sticky="w")
         ToolTip(target_combo, text_key="main_window.tooltips.target_language")
 
-                # Row 1: Action buttons (record, translate, multitranslate, deepseek)
+        # Row 1: Action buttons (record, translate, multitranslate, deepseek)
         btn_frame = ttk.Frame(control_frame)
         btn_frame.grid(row=1, column=0, columnspan=4, pady=15)  # Increased pady for spacing
 
@@ -292,12 +294,17 @@ class TranscriptionStudio:
         status_label.i18n_key = None
         ToolTip(status_label, text_key="main_window.tooltips.status_bar")
 
-        # VRAM indicator label
-        self.vram_var = tk.StringVar()
-        self.vram_var.set("VRAM: ...")
-        vram_label = ttk.Label(status_frame, textvariable=self.vram_var, relief=tk.SUNKEN, anchor=tk.E, width=18)
-        vram_label.pack(side=tk.RIGHT, padx=2)
-        ToolTip(vram_label, "GPU memory usage (updated every 5s)")
+        # VRAM indicator label (agora como atributo self.vram_label, sem StringVar)
+        self.vram_label = ttk.Label(
+            status_frame,
+            text="VRAM: ...",
+            relief=tk.SUNKEN,
+            anchor=tk.E,
+            width=18,
+            foreground="white"   # Força cor clara para tema escuro
+        )
+        self.vram_label.pack(side=tk.RIGHT, padx=2)
+        ToolTip(self.vram_label, "GPU memory usage (updated every 5s)")
 
         # Indeterminate progress bar (packed below status frame)
         self.progress_bar = tb.Progressbar(
@@ -373,9 +380,17 @@ class TranscriptionStudio:
 
     def update_vram_display(self):
         """Update the VRAM indicator label."""
+        logger.debug("update_vram_display called")
         usage = self.controller.get_gpu_memory_usage()
-        self.vram_var.set(usage)
-        self.root.after(5000, self.update_vram_display)  # update every 5 seconds
+        logger.debug(f"VRAM usage from controller: {usage}")
+        # Atualiza diretamente o texto do label
+        self.vram_label.config(text=usage)
+        # Força atualização da interface
+        self.vram_label.update_idletasks()
+        # Log para confirmar que o texto foi alterado
+        logger.debug(f"Label text after config: {self.vram_label.cget('text')}")
+        # Agenda próxima atualização
+        self.root.after(5000, self.update_vram_display)
 
     # ==================== DELEGATED METHODS (FOR TRAY ICON) ====================
 

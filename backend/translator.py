@@ -36,9 +36,9 @@ class Translator:
 
         # Check if source and target languages are supported
         if source_lang not in FLORES_CODES:
-            raise ValueError(f"Unsupported source language: {source_lang}")
+            raise ValueError(f"Unsupported source language: {source_lang}. Supported: {', '.join(FLORES_CODES.keys())}")
         if target_lang not in FLORES_CODES:
-            raise ValueError(f"Unsupported target language: {target_lang}")
+            raise ValueError(f"Unsupported target language: {target_lang}. Supported: {', '.join(FLORES_CODES.keys())}")
 
         # Load tokenizer with source language
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -57,8 +57,45 @@ class Translator:
         if self.device.type == "cpu":
             self.model = self.model.to(self.device)
 
+        # Determine the correct attribute for language code mapping
+        # Some versions use 'lang_code_to_id', others use 'converter'
+        if hasattr(self.tokenizer, 'lang_code_to_id'):
+            self.lang_code_attr = 'lang_code_to_id'
+        elif hasattr(self.tokenizer, '_lang_code_to_id'):
+            self.lang_code_attr = '_lang_code_to_id'
+        elif hasattr(self.tokenizer, 'converter') and hasattr(self.tokenizer.converter, 'lang_code_to_id'):
+            # For older versions where tokenizer has a converter
+            self.lang_code_attr = 'converter.lang_code_to_id'
+        else:
+            # Fallback: try to access via tokenizer's vocab
+            logger.warning("Could not find lang_code_to_id attribute. Attempting fallback.")
+            self.lang_code_attr = None
+
         logger.info("NLLB model loaded successfully")
 
+    def _get_forced_bos_token_id(self):
+        """Get the forced BOS token ID for the target language."""
+        target_flores = FLORES_CODES[self.target_lang]
+        token_str = f"__{target_flores}__"
+        
+        # Tenta obter o ID diretamente
+        token_id = self.tokenizer.convert_tokens_to_ids(token_str)
+        
+        # Se for o token desconhecido (unk_token_id), tenta buscar no vocabulário
+        if token_id == self.tokenizer.unk_token_id:
+            # Procura qualquer token que contenha o código FLORES
+            vocab = self.tokenizer.get_vocab()
+            for t, idx in vocab.items():
+                if target_flores in t:
+                    token_id = idx
+                    logger.debug(f"Found token '{t}' with id {idx} for language {self.target_lang}")
+                    break
+            else:
+                raise RuntimeError(f"Token for language {self.target_lang} ({target_flores}) not found in vocabulary")
+        
+        logger.debug(f"Forced BOS token ID for {self.target_lang}: {token_id}")
+        return token_id
+    
     def translate(self, text):
         """
         Translate text from source_lang to target_lang.
@@ -69,6 +106,8 @@ class Translator:
         Returns:
             Translated string, or error message prefixed with "[Error:]"
         """
+        forced_bos_token_id = self._get_forced_bos_token_id()
+        logger.debug(f"Using forced_bos_token_id={forced_bos_token_id}")
         if not text.strip():
             return ""
 
@@ -83,7 +122,7 @@ class Translator:
             ).to(self.device)
 
             # Force the target language in the decoder
-            forced_bos_token_id = self.tokenizer.lang_code_to_id[FLORES_CODES[self.target_lang]]
+            forced_bos_token_id = self._get_forced_bos_token_id()
 
             with torch.no_grad():
                 outputs = self.model.generate(
@@ -96,6 +135,14 @@ class Translator:
                 )
 
             translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Garantir que a string seja UTF-8 limpa
+            if isinstance(translated, bytes):
+                translated = translated.decode('utf-8', errors='ignore')
+            else:
+                # Forçar conversão para string e remover caracteres problemáticos
+                translated = str(translated).encode('utf-8', errors='ignore').decode('utf-8')
+            
             logger.debug(f"Translation ({self.source_lang}->{self.target_lang}): {translated[:50]}...")
             return translated.strip()
 

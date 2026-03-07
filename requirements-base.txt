@@ -1,0 +1,19 @@
+torch --index-url https://download.pytorch.org/whl/cpu
+transformers
+sounddevice
+numpy
+ttkbootstrap
+pyxdg
+requests
+language_tool_python
+piper-tts
+onnxruntime
+pydub
+pystray
+Pillow
+asyncddgs
+aiohttp
+httpx
+pytest
+pytest-mock
+pytest-cov

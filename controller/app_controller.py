@@ -1,4 +1,3 @@
-# controller/app_controller.py
 """
 Main application controller.
 Orchestrates backend services, UI updates, and D-Bus communication.
@@ -29,7 +28,7 @@ from backend.background.background_recorder import BackgroundRecorder
 from frontend.deepseek_window import DeepSeekWindow
 from utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES, TTS_VOICES, TRANSLATION_MODELS
 from utils.config_persistence import load_config, save_config, CONFIG_FILE
-from utils.i18n import _, set_language, get_current_language, get_available_languages
+from utils.i18n import _, set_language, get_current_language, get_available_languages, get_language_display
 from backend.dbus.dbus_service import DBusService
 from utils.logger import logger
 
@@ -43,24 +42,20 @@ class AppController:
         """Initialize controller, load config, set up services and D-Bus."""
         logger.info("Initializing AppController")
         
-        # Check if config file exists to decide whether to run hardware detection
         config_file_exists = CONFIG_FILE.exists()
         self.config = load_config()
 
         if not config_file_exists:
-            # First run: use hardware detection to set optimal defaults
             from utils.hardware_detector import get_recommended_settings
             rec = get_recommended_settings()
             self._device = rec["device"]
             self._model_size = rec["model_size"]
             self._translation_model = rec["translation_model"]
             self._tts_voice = rec["tts_voice"]
-            # Update config dict and save immediately
             self.config.update(rec)
             save_config(self.config)
             logger.info(f"First run – hardware detection applied: device={self._device}, model={self._model_size}")
         else:
-            # Use saved values
             self._device = self.config.get("device", config.DEVICE)
             self._model_size = self.config.get("model_size", config.MODEL_SIZE)
             self._translation_model = self.config.get("translation_model", "nllb-3.3B")
@@ -68,7 +63,12 @@ class AppController:
 
         self._current_language = self.config.get("source_language", "pt")
         self._translate_target = self.config.get("target_language", "en")
-        self._ui_language = self.config.get("ui_language", get_current_language())
+        # Garante que o idioma da interface esteja no formato "Nome (código)"
+        saved_ui = self.config.get("ui_language", get_language_display(get_current_language()))
+        # Se por acaso for apenas o código, converte
+        if '(' not in saved_ui:
+            saved_ui = get_language_display(saved_ui)
+        self._ui_language = saved_ui
         self._idle_timeout = self.config.get("idle_timeout", 60)
 
         self.all_languages = ALL_LANGUAGES
@@ -76,25 +76,21 @@ class AppController:
         self.tts_voices = TTS_VOICES
         self.translation_models = TRANSLATION_MODELS
 
-        # Internal state
         self.is_recording = False
         self.recorder = None
         self.deepseek_window = None
         self.busy = False
         self._root = None
 
-        # Services
         logger.debug("Initializing services")
         self.model_manager = ModelManager(device=self._device, idle_timeout=self._idle_timeout)
         self.deepseek_client = DeepSeekClient()
         self.audio_player = AudioPlayer()
-        # TTS engine will be created per DeepSeek window
         self.transcription_service = TranscriptionService(self.model_manager)
         self.translation_service = TranslationService(self.model_manager)
         self.correction_service = CorrectionService()
         self.background_recorder = BackgroundRecorder(self)
 
-        # UI references (will be set later via set_ui_refs)
         self.text_area = None
         self.trans_area = None
         self.btn_record = None
@@ -103,7 +99,6 @@ class AppController:
         self.status_var = None
         self.progress_bar = None
 
-        # Tkinter variables (created in init_variables)
         self.model_size = None
         self.device = None
         self.current_language = None
@@ -113,22 +108,13 @@ class AppController:
         self.translation_model = None
         self.idle_timeout = None
 
-        # Queue for D-Bus commands (to be processed safely in the main thread)
         self.dbus_queue = queue.Queue()
-
-        # Start D-Bus service (passes self to access the queue)
         self.dbus_service = DBusService(self)
 
         self.model_idle_check_interval = 60  # ou o valor desejado
         logger.info("AppController initialized successfully")
 
-    # ==================== TKINTER VARIABLES INITIALIZATION ====================
-
     def init_variables(self, root):
-        """
-        Create Tkinter variables associated with the root window.
-        Must be called after the root window exists.
-        """
         logger.debug("Initializing Tkinter variables")
         self._root = root
         self.model_size = tk.StringVar(root, value=self._model_size)
@@ -140,30 +126,20 @@ class AppController:
         self.translation_model = tk.StringVar(root, value=self._translation_model)
         self.idle_timeout = tk.StringVar(root, value=str(self._idle_timeout))
 
-        # Trace language changes
         self.ui_language.trace('w', self._on_language_change)
-
-        # Trace configuration changes (optional, could update services on the fly)
         self.tts_voice.trace('w', self._on_tts_voice_change)
         self.translation_model.trace('w', self._on_translation_model_change)
         self.idle_timeout.trace('w', self._on_idle_timeout_change)
 
-    # ==================== PROPERTIES ====================
-
     @property
     def root(self):
-        """Return the main tkinter root window."""
         return self._root
 
     @property
     def transcriber(self):
-        """Lazy getter for the transcriber (loads on demand)."""
         return self.model_manager.get_transcriber(self.model_size.get())
 
-    # ==================== UI REFERENCE SETTER ====================
-
     def set_ui_refs(self, text_area, trans_area, btn_record, btn_deepseek, rec_indicator, status_var, progress_bar=None):
-        """Store references to UI widgets for later updates."""
         logger.debug("Setting UI references")
         self.text_area = text_area
         self.trans_area = trans_area
@@ -173,10 +149,7 @@ class AppController:
         self.status_var = status_var
         self.progress_bar = progress_bar
 
-    # ==================== PROGRESS BAR CONTROL ====================
-
     def start_progress(self, text=None):
-        """Start the indeterminate progress bar and optionally update status text."""
         if self.progress_bar:
             self.progress_bar.pack(side=tk.BOTTOM, pady=2)
             self.progress_bar.start(10)
@@ -184,20 +157,13 @@ class AppController:
             self.status_var.set(text)
 
     def stop_progress(self, text=None):
-        """Stop and hide the progress bar, optionally update status text."""
         if self.progress_bar:
             self.progress_bar.stop()
             self.progress_bar.pack_forget()
         if text:
             self.status_var.set(text)
 
-    # ==================== D-BUS QUEUE PROCESSING ====================
-
     def process_dbus_queue(self):
-        """
-        Process commands from the D-Bus queue.
-        This method must be called periodically by the UI main loop.
-        """
         try:
             while True:
                 cmd = self.dbus_queue.get_nowait()
@@ -225,7 +191,6 @@ class AppController:
             pass
 
     def _toggle_recording_action(self):
-        """Toggle recording state (called from UI or D-Bus)."""
         logger.debug(f"_toggle_recording_action: busy={self.busy}, is_recording={self.is_recording}")
         if self.busy:
             logger.warning("System busy, ignoring toggle")
@@ -240,12 +205,10 @@ class AppController:
             self.busy = False
 
     def toggle_recording(self):
-        """Public method called by the UI to toggle recording."""
         logger.debug("toggle_recording called from UI")
         self._toggle_recording_action()
 
     def _toggle_background_action(self):
-        """Toggle background recording mode."""
         if self.background_recorder.recording:
             logger.info("Stopping background recording")
             self.background_recorder.stop()
@@ -253,12 +216,8 @@ class AppController:
             logger.info("Starting background recording")
             self.background_recorder.start()
 
-    # ==================== CONFIGURATION CHANGE HANDLERS ====================
-
     def _on_language_change(self, *args):
-        """Callback triggered when UI language is changed."""
         selected = self.ui_language.get()
-        # Extract code from parentheses, e.g. "Português (pt)" -> "pt"
         match = re.search(r'\(([^)]+)\)', selected)
         if match:
             code = match.group(1)
@@ -266,23 +225,19 @@ class AppController:
             set_language(code)
             self.update_ui_language()
         else:
-            logger.error(f"Invalid language format: {selected}")
+            logger.warning(f"Invalid language format: {selected} – using as code")
+            set_language(selected)
+            self.update_ui_language()
 
     def _on_tts_voice_change(self, *args):
-        """Callback when TTS voice is changed (placeholder for future dynamic updates)."""
         new_voice = self.tts_voice.get()
         logger.info(f"TTS voice changed to: {new_voice}")
-        # In the future, we could update the global TTS engine if we had one
-        # For now, just log the change
 
     def _on_translation_model_change(self, *args):
-        """Callback when translation model is changed (placeholder)."""
         new_model = self.translation_model.get()
         logger.info(f"Translation model changed to: {new_model}")
-        # Future: could reload translator with new model size
 
     def _on_idle_timeout_change(self, *args):
-        """Callback when idle timeout is changed."""
         try:
             new_timeout = int(self.idle_timeout.get())
             logger.info(f"Idle timeout changed to: {new_timeout} seconds")
@@ -290,10 +245,7 @@ class AppController:
         except ValueError:
             logger.error(f"Invalid idle timeout value: {self.idle_timeout.get()}")
 
-    # ==================== LANGUAGE UPDATE ====================
-
     def update_ui_language(self):
-        """Update all UI texts to the current language."""
         logger.debug("Updating UI language")
         if self.root:
             self._update_widget_language(self.root)
@@ -301,7 +253,6 @@ class AppController:
             self._update_widget_language(self.deepseek_window.window)
 
     def _update_widget_language(self, widget):
-        """Recursively update text of widgets that have an i18n_key attribute."""
         if hasattr(widget, 'i18n_key') and widget.i18n_key:
             try:
                 new_text = _(widget.i18n_key)
@@ -315,7 +266,6 @@ class AppController:
             self._update_widget_language(child)
 
     def get_ui_language_options(self):
-        """Return list of language options for the combobox (name + code)."""
         codes = get_available_languages()
         options = []
         for code in codes:
@@ -323,27 +273,14 @@ class AppController:
             options.append(f"{name} ({code})")
         return options
 
-    # ==================== CENTRALIZED ERROR HANDLING ====================
-
     def _handle_service_error(self, exception, user_message_key=None, **kwargs):
-        """
-        Centralized error handling for service operations.
-
-        Args:
-            exception: The exception that occurred.
-            user_message_key: i18n key for the message to show to the user.
-            **kwargs: Additional parameters for the i18n message.
-        """
         logger.error(f"Service error: {exception}", exc_info=True)
         if user_message_key:
             self.show_error(_("dialogs.common.error"), _(user_message_key, **kwargs))
         else:
             self.show_error(_("dialogs.common.error"), str(exception))
 
-    # ==================== MAIN ACTIONS ====================
-
     def start_recording(self):
-        """Start audio recording."""
         logger.info("Starting recording")
         self.recorder = AudioRecorder(samplerate=config.SAMPLE_RATE, channels=config.CHANNELS)
         self.text_area.delete(1.0, tk.END)
@@ -356,7 +293,6 @@ class AppController:
         self.status_var.set(_("common.audio.recording"))
 
     def stop_and_transcribe(self):
-        """Stop recording and start transcription in a thread."""
         logger.info("Stopping recording and transcribing")
         self.is_recording = False
         audio = self.recorder.stop()
@@ -388,7 +324,6 @@ class AppController:
         threading.Thread(target=transcribe_task, daemon=True).start()
 
     def display_transcription(self, text):
-        """Display transcribed text in the UI."""
         logger.info("Transcription completed")
         self.text_area.insert(tk.END, text + "\n")
         self.stop_progress(_("main_window.status.transcribing_done"))
@@ -396,7 +331,6 @@ class AppController:
         self.show_notification(_("tray.notifications.transcription_ready"), "")
 
     def translate_text(self):
-        """Translate the current transcription."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -429,6 +363,7 @@ class AppController:
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
             return
+        
         logger.info("Starting multi-language translation")
         self.start_progress(_("main_window.status.translating"))
         source = self.current_language.get()
@@ -437,21 +372,21 @@ class AppController:
         def task():
             for target in targets:
                 try:
+                    logger.debug(f"Translating {source} -> {target}")
                     translated = self.translation_service.translate(
                         text,
                         source_lang=source,
                         target_lang=target
                     )
-                    self.root.after(0, lambda l=target, t=translated: self.insert_translation(l, t))
+                    self.root.after(0, lambda t=target, tr=translated: self.insert_translation(t, tr))
                 except Exception as e:
                     logger.error(f"Translation error for {target}: {e}")
-                    self.root.after(0, lambda: self.insert_translation(target, f"[Error: {e}]"))
+                    self.root.after(0, lambda t=target, err=e: self.insert_translation(t, f"[Error: {err}]"))
             self.root.after(0, lambda: self.stop_progress(_("main_window.status.translating_done")))
 
         threading.Thread(target=task, daemon=True).start()
 
     def insert_translation(self, lang_code, text):
-        """Insert a translation into the translations area with language code in brackets."""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         prefix = f"[{timestamp}] [{lang_code.upper()}] "
@@ -460,7 +395,6 @@ class AppController:
         self.trans_area.see(tk.END)
 
     def correct_transcription(self):
-        """Open correction dialog for the transcription text."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -477,7 +411,6 @@ class AppController:
         )
 
     def correct_translation(self):
-        """Open correction dialog for the translation area (target language: English)."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -494,7 +427,6 @@ class AppController:
         )
 
     def save_transcription(self):
-        """Save the current transcription to a file."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -509,7 +441,6 @@ class AppController:
         self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def save_translations(self):
-        """Save all translations to a file."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -524,7 +455,6 @@ class AppController:
         self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def open_deepseek_window(self):
-        """Open or restore the DeepSeek query window."""
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
             logger.debug("Restoring existing DeepSeek window")
             self.deepseek_window.show_window()
@@ -541,7 +471,6 @@ class AppController:
                 self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
 
     def open_deepseek_with_context(self, prompt, response):
-        """Open DeepSeek window with a pre-filled prompt and response."""
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
             logger.debug("Closing existing DeepSeek window to open with context")
             self.deepseek_window.destroy()
@@ -563,11 +492,8 @@ class AppController:
         self.root.after(self.model_idle_check_interval, self.check_model_idle)
 
     def stop_all_audio(self):
-        """Stop all audio playback."""
         logger.info("Stopping all audio")
         self.audio_player.stop()
-
-    # ==================== GPU MEMORY USAGE ====================
 
     def get_gpu_memory_usage(self):
         """
@@ -647,12 +573,12 @@ class AppController:
 
         return "VRAM: N/A"
 
-    # ==================== BACKGROUND RECORDING (already integrated) ====================
+        except Exception as e:
+            logger.debug(f"GPU memory query failed: {e}")
 
-    # ==================== NOTIFICATIONS AND DIALOGS ====================
+        return "VRAM: N/A"
 
     def show_notification(self, title, message):
-        """Send a desktop notification."""
         try:
             import subprocess
             subprocess.run(['notify-send', title, message])
@@ -661,24 +587,18 @@ class AppController:
             logger.error(f"Failed to send notification: {e}")
 
     def show_error(self, title, message):
-        """Show an error message box."""
         from tkinter import messagebox
         messagebox.showerror(title, message, parent=self.root)
 
     def show_info(self, title, message):
-        """Show an information message box."""
         from tkinter import messagebox
         messagebox.showinfo(title, message, parent=self.root)
 
     def show_warning(self, title, message):
-        """Show a warning message box."""
         from tkinter import messagebox
         messagebox.showwarning(title, message, parent=self.root)
 
-    # ==================== APPLICATION SHUTDOWN ====================
-
     def quit_app(self):
-        """Shut down the application, save config, unload models."""
         logger.info("Shutting down application")
         config_dict = {
             "model_size": self.model_size.get() if self.model_size else self._model_size,
