@@ -70,6 +70,8 @@ class TranscriptionStudio:
         # Start VRAM monitoring
         self.update_vram_display()
 
+        self.root.after(1000, self.controller.check_model_idle)
+
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         logger.info("Main window initialized")
 

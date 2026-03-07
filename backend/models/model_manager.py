@@ -28,6 +28,7 @@ class ModelManager:
         """
         self.device = device if torch.cuda.is_available() and device == "cuda" else "cpu"
         self.idle_timeout = idle_timeout
+        self.model_idle_check_interval = 1000 
 
         # Current models
         self.current_transcriber = None
@@ -52,19 +53,28 @@ class ModelManager:
             self.unload_timer.start()
 
     def _unload_if_idle(self):
-        """Unload models if idle timeout has been reached."""
         with self.lock:
+            logger.debug(f"_unload_if_idle executado, last_access={self.last_access}, agora={time.time()}")
             if time.time() - self.last_access >= self.idle_timeout:
-                logger.info("Idle timeout reached, unloading models")
+                logger.info(f"Timeout atingido ({self.idle_timeout}s), descarregando modelos")
                 self.unload_all()
                 self.unload_timer = None
             else:
-                # If not idle yet, restart timer with remaining time
                 remaining = self.idle_timeout - (time.time() - self.last_access)
-                if remaining > 0:
-                    self.unload_timer = threading.Timer(remaining, self._unload_if_idle)
-                    self.unload_timer.daemon = True
-                    self.unload_timer.start()
+                logger.debug(f"Ainda ativo, próximo check em {remaining:.1f}s")
+                self.unload_timer = threading.Timer(remaining, self._unload_if_idle)
+                self.unload_timer.daemon = True
+                self.unload_timer.start()
+
+    def _reset_timer(self):
+        with self.lock:
+            if self.unload_timer:
+                self.unload_timer.cancel()
+                logger.debug("Timer cancelado")
+            self.unload_timer = threading.Timer(self.idle_timeout, self._unload_if_idle)
+            self.unload_timer.daemon = True
+            self.unload_timer.start()
+            logger.debug(f"Timer agendado para {self.idle_timeout}s")
 
     def _update_access(self):
         """Update last access time and restart timer."""
@@ -119,6 +129,13 @@ class ModelManager:
                     logger.error(f"Failed to load translator: {e}")
                     raise
             return self.current_translator
+        
+    def check_idle(self):
+        with self.lock:
+            if self.current_transcriber or self.current_translator:
+                if time.time() - self.last_access >= self.idle_timeout:
+                    logger.info("Idle timeout reached, unloading models")
+                    self.unload_all()
 
     def unload_transcriber(self):
         """Unload the transcriber from GPU."""

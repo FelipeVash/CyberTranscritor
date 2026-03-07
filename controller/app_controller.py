@@ -118,6 +118,8 @@ class AppController:
 
         # Start D-Bus service (passes self to access the queue)
         self.dbus_service = DBusService(self)
+
+        self.model_idle_check_interval = 60  # ou o valor desejado
         logger.info("AppController initialized successfully")
 
     # ==================== TKINTER VARIABLES INITIALIZATION ====================
@@ -556,6 +558,10 @@ class AppController:
         except Exception as e:
             self._handle_service_error(e)
 
+    def check_model_idle(self):
+        self.model_manager.check_idle()
+        self.root.after(self.model_idle_check_interval, self.check_model_idle)
+
     def stop_all_audio(self):
         """Stop all audio playback."""
         logger.info("Stopping all audio")
@@ -566,39 +572,79 @@ class AppController:
     def get_gpu_memory_usage(self):
         """
         Return GPU memory usage as a string (e.g., "VRAM: 2.3/8.0 GB").
-        Uses rocm-smi for AMD GPUs. Falls back to "N/A" if not available.
+        Uses rocm-smi for AMD GPUs, nvidia-smi for NVIDIA, and falls back to torch.
         """
         try:
             import subprocess
             import shutil
+            import re
+
             # Try rocm-smi (AMD)
             if shutil.which('rocm-smi') is not None:
-                result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
-                                         capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    lines = result.stdout.split('\n')
-                    total = used = None
-                    for line in lines:
-                        if 'VRAM Total' in line:
-                            total = line.split(':')[1].strip().split()[0]
-                        elif 'VRAM Used' in line:
-                            used = line.split(':')[1].strip().split()[0]
-                    if total and used:
-                        total_gb = round(float(total) / 1024, 1)
-                        used_gb = round(float(used) / 1024, 1)
-                        return f"VRAM: {used_gb}/{total_gb} GB"
+                logger.debug("Trying rocm-smi")
+                try:
+                    result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'],
+                                            capture_output=True, text=True, timeout=2, check=False)
+                    if result.returncode == 0:
+                        lines = result.stdout.split('\n')
+                        total = used = None
+                        for line in lines:
+                            # Procura linhas como: GPU[0]          : VRAM Total Memory (B): 25753026560
+                            if 'VRAM Total Memory' in line:
+                                match = re.search(r':\s*(\d+)', line)
+                                if match:
+                                    total = int(match.group(1))
+                            elif 'VRAM Total Used Memory' in line:
+                                match = re.search(r':\s*(\d+)', line)
+                                if match:
+                                    used = int(match.group(1))
+                        if total is not None and used is not None:
+                            total_gb = total / (1024**3)
+                            used_gb = used / (1024**3)
+                            result_str = f"VRAM: {used_gb:.1f}/{total_gb:.1f} GB"
+                            logger.debug(f"rocm-smi result: {result_str}")
+                            return result_str
+                except Exception as e:
+                    logger.debug(f"rocm-smi failed: {e}")
+
             # Fallback to nvidia-smi (NVIDIA)
             if shutil.which('nvidia-smi') is not None:
-                result = subprocess.run(['nvidia-smi', '--query-gpu=memory.used,memory.total',
-                                         '--format=csv,noheader,nounits'],
-                                        capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    used, total = result.stdout.strip().split(',')
-                    used_gb = round(float(used) / 1024, 1)
-                    total_gb = round(float(total) / 1024, 1)
-                    return f"VRAM: {used_gb}/{total_gb} GB"
+                logger.debug("Trying nvidia-smi")
+                try:
+                    result = subprocess.run(['nvidia-smi', '--query-gpu=memory.used,memory.total',
+                                            '--format=csv,noheader,nounits'],
+                                            capture_output=True, text=True, timeout=2, check=False)
+                    if result.returncode == 0:
+                        used_str, total_str = result.stdout.strip().split(',')
+                        used_gb = round(float(used_str) / 1024, 1)
+                        total_gb = round(float(total_str) / 1024, 1)
+                        result_str = f"VRAM: {used_gb}/{total_gb} GB"
+                        logger.debug(f"nvidia-smi result: {result_str}")
+                        return result_str
+                except Exception as e:
+                    logger.debug(f"nvidia-smi failed: {e}")
+
+            # Fallback using torch (total and allocated)
+            if torch.cuda.is_available():
+                logger.debug("Trying torch.cuda")
+                try:
+                    device = torch.cuda.current_device()
+                    total_memory = torch.cuda.get_device_properties(device).total_memory
+                    total_gb = total_memory / (1024**3)
+                    allocated = torch.cuda.memory_allocated(device)
+                    allocated_gb = allocated / (1024**3)
+                    if allocated_gb > 0:
+                        result_str = f"VRAM: {allocated_gb:.1f}/{total_gb:.1f} GB (PyTorch)"
+                    else:
+                        result_str = f"VRAM: ?/{total_gb:.1f} GB"
+                    logger.debug(f"torch result: {result_str}")
+                    return result_str
+                except Exception as e:
+                    logger.debug(f"torch.cuda query failed: {e}")
+
         except Exception as e:
-            logger.debug(f"GPU memory query failed (non-critical): {e}")
+            logger.debug(f"GPU memory query failed: {e}")
+
         return "VRAM: N/A"
 
     # ==================== BACKGROUND RECORDING (already integrated) ====================
