@@ -1,4 +1,3 @@
-# tests/test_hardware_detector.py
 import pytest
 from unittest.mock import patch, MagicMock
 from utils.hardware_detector import (
@@ -18,7 +17,8 @@ def test_get_gpu_memory_rocm_success():
     mock_run = MagicMock()
     mock_run.returncode = 0
     mock_run.stdout = "VRAM Total: 16384 MB\nVRAM Used: 1024 MB"
-    with patch('subprocess.run', return_value=mock_run):
+    with patch('torch.cuda.is_available', return_value=True), \
+         patch('subprocess.run', return_value=mock_run):
         mem = get_gpu_memory()
         assert mem == 16.0  # 16384/1024
 
@@ -26,12 +26,14 @@ def test_get_gpu_memory_nvidia_success():
     mock_run = MagicMock()
     mock_run.returncode = 0
     mock_run.stdout = "8192"
-    with patch('subprocess.run', return_value=mock_run):
+    with patch('torch.cuda.is_available', return_value=True), \
+         patch('subprocess.run', return_value=mock_run):
         mem = get_gpu_memory()
         assert mem == 8.0
 
 def test_get_gpu_memory_fallback_torch():
-    with patch('subprocess.run', side_effect=FileNotFoundError()), \
+    with patch('torch.cuda.is_available', return_value=True), \
+         patch('subprocess.run', side_effect=FileNotFoundError()), \
          patch('torch.cuda.get_device_properties') as mock_prop:
         mock_prop.return_value.total_memory = 6 * 1024**3  # 6GB
         mem = get_gpu_memory()
@@ -67,3 +69,4 @@ def test_get_recommended_settings():
         assert settings['model_size'] == 'medium'
         assert settings['translation_model'] == 'nllb-1.3B'
         assert settings['tts_voice'] == 'pt_BR-faber-medium'
+        
