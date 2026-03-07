@@ -7,20 +7,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y portaudio19-dev libportaudio2 libsndfile1
+          sudo apt-get install -y \
+            portaudio19-dev libportaudio2 libsndfile1 \
+            libcairo2-dev libgirepository1.0-dev gobject-introspection libglib2.0-dev
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run tests
         run: pytest tests/ -v --log-file=test_output.log --cov=.
+
       - name: Upload log
         uses: actions/upload-artifact@v4
         with:
