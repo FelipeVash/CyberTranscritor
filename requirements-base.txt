@@ -14,8 +14,6 @@ Pillow
 asyncddgs
 aiohttp
 httpx
-dbus-python
-pygobject
 pytest
 pytest-mock
 pytest-cov

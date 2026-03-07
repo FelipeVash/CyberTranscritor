@@ -28,12 +28,16 @@ jobs:
             libglib2.0-dev libffi-dev python3-dev \
             espeak-ng libespeak-ng-dev \
             ffmpeg libavcodec-extra \
-            libdbus-1-dev libdbus-glib-1-dev
+            libdbus-1-dev libdbus-glib-1-dev \
+            python3-gi python3-gi-cairo python3-dbus
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-base.txt
+
+      - name: Set PYTHONPATH for system packages
+        run: echo "PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: Run tests
         run: pytest tests/ -v --log-file=test_output.log --cov=.
