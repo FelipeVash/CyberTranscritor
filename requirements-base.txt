@@ -6,6 +6,11 @@ ttkbootstrap
 pyxdg
 requests
 language_tool_python
+piper-tts
+onnxruntime
+pydub
+pystray
+Pillow
 pytest
 pytest-mock
 pytest-cov
