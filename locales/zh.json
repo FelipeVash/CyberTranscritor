@@ -21,7 +21,8 @@
       },
       "tools_menu": {
         "settings": "设置",
-        "open_deepseek": "打开DeepSeek"
+        "open_deepseek": "打开DeepSeek",
+        "cache_stats": "缓存统计"
       },
       "help_menu": {
         "about": "关于"
@@ -136,7 +137,8 @@
         "device": "设备:",
         "tts_voice": "TTS语音:",
         "translation_model": "翻译模型:",
-        "idle_timeout": "空闲超时 (秒):"
+        "idle_timeout": "空闲超时 (秒):",
+        "translation_cache": "翻译缓存"
     },
     "tooltips": {
         "ui_language": "选择界面语言",
@@ -144,13 +146,18 @@
         "device": "推理设备 (推荐GPU)",
         "tts_voice": "选择语音合成的声音",
         "translation_model": "翻译模型 (越大越精确，但速度越慢)",
-        "idle_timeout": "无操作多长时间后从GPU卸载模型"
+        "idle_timeout": "无操作多长时间后从GPU卸载模型",
+        "clear_cache": "删除所有缓存的翻译"
     },
     "buttons": {
         "ok": "确定",
         "apply": "应用",
-        "cancel": "取消"
-    }
+        "cancel": "取消",
+        "clear_cache": "清除缓存",
+        "refresh_stats": "刷新统计"
+    },
+    "cache_stats": "大小: {size}/{max_size} | 命中: {hits} | 未命中: {misses}",
+    "cache_stats_unavailable": "统计不可用"
   },
   "deepseek_window": {
     "title": "🤖 DeepSeek - 语音查询",
@@ -234,6 +241,9 @@
       "minimize": "最小化到托盘",
       "exit": "退出",
       "cancel": "取消"
+    },
+    "cache_stats": {
+      "title": "翻译缓存统计"
     }
   },
   "tray": {
@@ -313,5 +323,8 @@
     "transcription": "转录错误: {error}",
     "translation": "从 {source} 到 {target} 的翻译错误: {error}",
     "correction": "语法纠正错误: {error}"
+  },
+  "translation": {
+      "cache_cleared": "翻译缓存已成功清除。"
   }
 }

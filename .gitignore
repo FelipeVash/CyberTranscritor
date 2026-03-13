@@ -29,3 +29,5 @@ test_audio/
 *.swo
 *~
 .DS_Store
+frontend/__pycache__/main_window.cpython-312.pyc
+backend/__pycache__/translator.cpython-312.pyc

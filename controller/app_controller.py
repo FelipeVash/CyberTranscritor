@@ -45,6 +45,7 @@ class AppController:
         config_file_exists = CONFIG_FILE.exists()
         self.config = load_config()
 
+        # First run: detect hardware and set recommended defaults
         if not config_file_exists:
             from utils.hardware_detector import get_recommended_settings
             rec = get_recommended_settings()
@@ -56,6 +57,7 @@ class AppController:
             save_config(self.config)
             logger.info(f"First run – hardware detection applied: device={self._device}, model={self._model_size}")
         else:
+            # Load from saved config
             self._device = self.config.get("device", config.DEVICE)
             self._model_size = self.config.get("model_size", config.MODEL_SIZE)
             self._translation_model = self.config.get("translation_model", "nllb-3.3B")
@@ -63,9 +65,9 @@ class AppController:
 
         self._current_language = self.config.get("source_language", "pt")
         self._translate_target = self.config.get("target_language", "en")
-        # Garante que o idioma da interface esteja no formato "Nome (código)"
+        # Ensure UI language is stored as "Name (code)" format
         saved_ui = self.config.get("ui_language", get_language_display(get_current_language()))
-        # Se por acaso for apenas o código, converte
+        # If by any chance it's just the code, convert it
         if '(' not in saved_ui:
             saved_ui = get_language_display(saved_ui)
         self._ui_language = saved_ui
@@ -91,6 +93,7 @@ class AppController:
         self.correction_service = CorrectionService()
         self.background_recorder = BackgroundRecorder(self)
 
+        # UI references (to be set later)
         self.text_area = None
         self.trans_area = None
         self.btn_record = None
@@ -99,6 +102,7 @@ class AppController:
         self.status_var = None
         self.progress_bar = None
 
+        # Tkinter variables (to be initialized with root)
         self.model_size = None
         self.device = None
         self.current_language = None
@@ -110,11 +114,10 @@ class AppController:
 
         self.dbus_queue = queue.Queue()
         self.dbus_service = DBusService(self)
-
-        self.model_idle_check_interval = 60  # ou o valor desejado
         logger.info("AppController initialized successfully")
 
     def init_variables(self, root):
+        """Initialize Tkinter variables with the given root window."""
         logger.debug("Initializing Tkinter variables")
         self._root = root
         self.model_size = tk.StringVar(root, value=self._model_size)
@@ -126,6 +129,7 @@ class AppController:
         self.translation_model = tk.StringVar(root, value=self._translation_model)
         self.idle_timeout = tk.StringVar(root, value=str(self._idle_timeout))
 
+        # Trace changes to trigger actions
         self.ui_language.trace('w', self._on_language_change)
         self.tts_voice.trace('w', self._on_tts_voice_change)
         self.translation_model.trace('w', self._on_translation_model_change)
@@ -133,13 +137,16 @@ class AppController:
 
     @property
     def root(self):
+        """Return the root Tk window."""
         return self._root
 
     @property
     def transcriber(self):
+        """Convenience property to get the current transcriber from model manager."""
         return self.model_manager.get_transcriber(self.model_size.get())
 
     def set_ui_refs(self, text_area, trans_area, btn_record, btn_deepseek, rec_indicator, status_var, progress_bar=None):
+        """Store references to UI elements for later manipulation."""
         logger.debug("Setting UI references")
         self.text_area = text_area
         self.trans_area = trans_area
@@ -150,6 +157,7 @@ class AppController:
         self.progress_bar = progress_bar
 
     def start_progress(self, text=None):
+        """Show and start the indeterminate progress bar, optionally set status text."""
         if self.progress_bar:
             self.progress_bar.pack(side=tk.BOTTOM, pady=2)
             self.progress_bar.start(10)
@@ -157,6 +165,7 @@ class AppController:
             self.status_var.set(text)
 
     def stop_progress(self, text=None):
+        """Stop and hide the progress bar, optionally set status text."""
         if self.progress_bar:
             self.progress_bar.stop()
             self.progress_bar.pack_forget()
@@ -164,6 +173,7 @@ class AppController:
             self.status_var.set(text)
 
     def process_dbus_queue(self):
+        """Process any pending D-Bus commands from the queue."""
         try:
             while True:
                 cmd = self.dbus_queue.get_nowait()
@@ -191,6 +201,7 @@ class AppController:
             pass
 
     def _toggle_recording_action(self):
+        """Internal method to toggle recording, handling busy state."""
         logger.debug(f"_toggle_recording_action: busy={self.busy}, is_recording={self.is_recording}")
         if self.busy:
             logger.warning("System busy, ignoring toggle")
@@ -205,10 +216,12 @@ class AppController:
             self.busy = False
 
     def toggle_recording(self):
+        """Public method called from UI to toggle recording."""
         logger.debug("toggle_recording called from UI")
         self._toggle_recording_action()
 
     def _toggle_background_action(self):
+        """Toggle background recording on/off."""
         if self.background_recorder.recording:
             logger.info("Stopping background recording")
             self.background_recorder.stop()
@@ -217,6 +230,7 @@ class AppController:
             self.background_recorder.start()
 
     def _on_language_change(self, *args):
+        """Handle UI language change: extract code and update i18n."""
         selected = self.ui_language.get()
         match = re.search(r'\(([^)]+)\)', selected)
         if match:
@@ -230,14 +244,17 @@ class AppController:
             self.update_ui_language()
 
     def _on_tts_voice_change(self, *args):
+        """Handle TTS voice change (logging only, actual change happens in DeepSeek window)."""
         new_voice = self.tts_voice.get()
         logger.info(f"TTS voice changed to: {new_voice}")
 
     def _on_translation_model_change(self, *args):
+        """Handle translation model change (logging only)."""
         new_model = self.translation_model.get()
         logger.info(f"Translation model changed to: {new_model}")
 
     def _on_idle_timeout_change(self, *args):
+        """Handle idle timeout change."""
         try:
             new_timeout = int(self.idle_timeout.get())
             logger.info(f"Idle timeout changed to: {new_timeout} seconds")
@@ -246,6 +263,7 @@ class AppController:
             logger.error(f"Invalid idle timeout value: {self.idle_timeout.get()}")
 
     def update_ui_language(self):
+        """Update all UI widgets to reflect new language."""
         logger.debug("Updating UI language")
         if self.root:
             self._update_widget_language(self.root)
@@ -266,6 +284,7 @@ class AppController:
             self._update_widget_language(child)
 
     def get_ui_language_options(self):
+        """Return a list of language display strings for the combobox."""
         codes = get_available_languages()
         options = []
         for code in codes:
@@ -274,6 +293,7 @@ class AppController:
         return options
 
     def _handle_service_error(self, exception, user_message_key=None, **kwargs):
+        """Log error and show a user-friendly message box."""
         logger.error(f"Service error: {exception}", exc_info=True)
         if user_message_key:
             self.show_error(_("dialogs.common.error"), _(user_message_key, **kwargs))
@@ -293,6 +313,7 @@ class AppController:
         self.status_var.set(_("common.audio.recording"))
 
     def stop_and_transcribe(self):
+        """Stop recording and start transcription in a background thread."""
         logger.info("Stopping recording and transcribing")
         self.is_recording = False
         audio = self.recorder.stop()
@@ -307,6 +328,7 @@ class AppController:
             return
 
         def transcribe_task():
+            """Background transcription task."""
             try:
                 text = self.transcription_service.transcribe(
                     audio,
@@ -324,6 +346,7 @@ class AppController:
         threading.Thread(target=transcribe_task, daemon=True).start()
 
     def display_transcription(self, text):
+        """Insert transcribed text into the text area and update UI."""
         logger.info("Transcription completed")
         self.text_area.insert(tk.END, text + "\n")
         self.stop_progress(_("main_window.status.transcribing_done"))
@@ -331,6 +354,7 @@ class AppController:
         self.show_notification(_("tray.notifications.transcription_ready"), "")
 
     def translate_text(self):
+        """Translate the current transcription to the target language."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -387,6 +411,7 @@ class AppController:
         threading.Thread(target=task, daemon=True).start()
 
     def insert_translation(self, lang_code, text):
+        """Insert a translation with timestamp and language prefix."""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         prefix = f"[{timestamp}] [{lang_code.upper()}] "
@@ -395,6 +420,7 @@ class AppController:
         self.trans_area.see(tk.END)
 
     def correct_transcription(self):
+        """Open correction dialog for the transcription area."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -411,6 +437,7 @@ class AppController:
         )
 
     def correct_translation(self):
+        """Open correction dialog for the translation area."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -441,6 +468,7 @@ class AppController:
         self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def save_translations(self):
+        """Save the current translations to a file."""
         text = self.trans_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -455,6 +483,7 @@ class AppController:
         self.show_info(_("dialogs.common.success"), _("main_window.status.saved", filename=filename))
 
     def open_deepseek_window(self):
+        """Open (or restore) the DeepSeek chat window."""
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
             logger.debug("Restoring existing DeepSeek window")
             self.deepseek_window.show_window()
@@ -471,6 +500,7 @@ class AppController:
                 self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
 
     def open_deepseek_with_context(self, prompt, response):
+        """Open DeepSeek window with pre-filled prompt and response."""
         if self.deepseek_window and self.deepseek_window.window.winfo_exists():
             logger.debug("Closing existing DeepSeek window to open with context")
             self.deepseek_window.destroy()
@@ -487,11 +517,8 @@ class AppController:
         except Exception as e:
             self._handle_service_error(e)
 
-    def check_model_idle(self):
-        self.model_manager.check_idle()
-        self.root.after(self.model_idle_check_interval, self.check_model_idle)
-
     def stop_all_audio(self):
+        """Stop any currently playing audio."""
         logger.info("Stopping all audio")
         self.audio_player.stop()
 
@@ -503,8 +530,7 @@ class AppController:
         try:
             import subprocess
             import shutil
-            import re
-
+            
             # Try rocm-smi (AMD)
             if shutil.which('rocm-smi') is not None:
                 logger.debug("Trying rocm-smi")
@@ -515,24 +541,36 @@ class AppController:
                         lines = result.stdout.split('\n')
                         total = used = None
                         for line in lines:
-                            # Procura linhas como: GPU[0]          : VRAM Total Memory (B): 25753026560
-                            if 'VRAM Total Memory' in line:
-                                match = re.search(r':\s*(\d+)', line)
-                                if match:
-                                    total = int(match.group(1))
-                            elif 'VRAM Total Used Memory' in line:
-                                match = re.search(r':\s*(\d+)', line)
-                                if match:
-                                    used = int(match.group(1))
+                            if 'VRAM Total' in line:
+                                parts = line.split(':')
+                                if len(parts) > 1:
+                                    value_str = parts[1].strip()
+                                    import re
+                                    num_match = re.search(r'(\d+\.?\d*)', value_str)
+                                    if num_match:
+                                        total = float(num_match.group(1))
+                                        if 'GB' in value_str:
+                                            total_gb = total
+                                        else:
+                                            total_gb = total / 1024
+                            elif 'VRAM Used' in line:
+                                parts = line.split(':')
+                                if len(parts) > 1:
+                                    value_str = parts[1].strip()
+                                    num_match = re.search(r'(\d+\.?\d*)', value_str)
+                                    if num_match:
+                                        used = float(num_match.group(1))
+                                        if 'GB' in value_str:
+                                            used_gb = used
+                                        else:
+                                            used_gb = used / 1024
                         if total is not None and used is not None:
-                            total_gb = total / (1024**3)
-                            used_gb = used / (1024**3)
                             result_str = f"VRAM: {used_gb:.1f}/{total_gb:.1f} GB"
                             logger.debug(f"rocm-smi result: {result_str}")
                             return result_str
                 except Exception as e:
                     logger.debug(f"rocm-smi failed: {e}")
-
+            
             # Fallback to nvidia-smi (NVIDIA)
             if shutil.which('nvidia-smi') is not None:
                 logger.debug("Trying nvidia-smi")
@@ -549,36 +587,35 @@ class AppController:
                         return result_str
                 except Exception as e:
                     logger.debug(f"nvidia-smi failed: {e}")
-
-            # Fallback using torch (total and allocated)
+            
+            # Fallback using torch (only total and allocated)
             if torch.cuda.is_available():
                 logger.debug("Trying torch.cuda")
                 try:
                     device = torch.cuda.current_device()
                     total_memory = torch.cuda.get_device_properties(device).total_memory
-                    total_gb = total_memory / (1024**3)
+                    total_gb = round(total_memory / (1024**3), 1)
+                    
                     allocated = torch.cuda.memory_allocated(device)
-                    allocated_gb = allocated / (1024**3)
+                    allocated_gb = round(allocated / (1024**3), 1)
+                    
                     if allocated_gb > 0:
                         result_str = f"VRAM: {allocated_gb:.1f}/{total_gb:.1f} GB (PyTorch)"
                     else:
                         result_str = f"VRAM: ?/{total_gb:.1f} GB"
+                    
                     logger.debug(f"torch result: {result_str}")
                     return result_str
                 except Exception as e:
                     logger.debug(f"torch.cuda query failed: {e}")
-
+            
         except Exception as e:
             logger.debug(f"GPU memory query failed: {e}")
-
+        
         return "VRAM: N/A"
-
-        except Exception as e:
-            logger.debug(f"GPU memory query failed: {e}")
-
-        return "VRAM: N/A"
-
+    
     def show_notification(self, title, message):
+        """Send a desktop notification using notify-send."""
         try:
             import subprocess
             subprocess.run(['notify-send', title, message])
@@ -598,7 +635,17 @@ class AppController:
         from tkinter import messagebox
         messagebox.showwarning(title, message, parent=self.root)
 
+    def clear_translation_cache(self):
+        """Clear the translation cache."""
+        self.translation_service.clear_cache()
+        self.show_info(_("dialogs.common.info"), _("translation.cache_cleared"))
+
+    def get_translation_cache_stats(self):
+        """Return translation cache statistics."""
+        return self.translation_service.cache_stats()
+
     def quit_app(self):
+        """Shutdown the application, save config, and exit."""
         logger.info("Shutting down application")
         config_dict = {
             "model_size": self.model_size.get() if self.model_size else self._model_size,
