@@ -5,9 +5,7 @@ import os
 from pathlib import Path
 
 class I18n:
-    """
-    Gerenciador de internacionalização com suporte a chaves aninhadas.
-    """
+    """Internationalization manager with support for nested keys."""
     
     def __init__(self, domain="messages", localedir=None):
         self.domain = domain
@@ -17,6 +15,7 @@ class I18n:
         self.load_language(self.current_language)
     
     def _detect_system_language(self):
+        """Detect system language (e.g., pt_BR, en_US, es_ES)."""
         try:
             lang, _ = locale.getdefaultlocale()
             if lang:
@@ -32,21 +31,25 @@ class I18n:
             return 'en'
     
     def load_language(self, lang_code):
+        """Load translation file for the specified language."""
         self.current_language = lang_code
         file_path = self.localedir / f"{lang_code}.json"
         
         if not file_path.exists() and lang_code != 'en':
-            print(f"Arquivo de idioma {lang_code}.json não encontrado. Usando inglês.")
+            print(f"Language file {lang_code}.json not found. Using English.")
             file_path = self.localedir / "en.json"
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 self.translations = json.load(f)
         except Exception as e:
-            print(f"Erro ao carregar traduções: {e}")
+            print(f"Error loading translations: {e}")
             self.translations = {}
     
     def get(self, key, **kwargs):
+        # Handle pt-br as pt for common.languages
+        if key.startswith("common.languages.") and "pt-br" in key:
+            key = key.replace("pt-br", "pt")
         keys = key.split('.')
         value = self.translations
         try:
@@ -58,7 +61,19 @@ class I18n:
         except (KeyError, TypeError):
             return key
 
-# Instância global
+    def get_language_display(self, lang_code):
+        """
+        Return a display string for the language, e.g., "Portuguese (pt-br)".
+        Uses the translation of the key "common.languages.<code>" as the language name.
+        """
+        name_key = f"common.languages.{lang_code}"
+        name = self.get(name_key)
+        # If the key is not found, fallback to the code itself
+        if name == name_key:
+            name = lang_code
+        return f"{name} ({lang_code})"
+
+# Global instance
 _i18n = I18n()
 
 def _(key, **kwargs):
@@ -75,10 +90,8 @@ def get_available_languages():
     files = localedir.glob("*.json")
     return [f.stem for f in files]
 
-def get_language_display(code):
+def get_language_display(lang_code):
     """
-    Retorna o nome completo do idioma no formato "Nome (código)".
-    Ex: "Português (pt-br)".
+    Global function to get the display representation of a language code.
     """
-    name = _("common.languages." + code)
-    return f"{name} ({code})"
+    return _i18n.get_language_display(lang_code)

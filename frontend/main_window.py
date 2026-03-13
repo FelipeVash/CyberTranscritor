@@ -50,7 +50,7 @@ class TranscriptionStudio:
         self.btn_deepseek = None
         self.rec_indicator = None
         self.status_var = None
-        self.vram_label = None   # <-- Agora é atributo
+        self.vram_label = None  # Will be set in setup_ui
         self.progress_bar = None
 
         self.setup_menu()
@@ -72,7 +72,7 @@ class TranscriptionStudio:
         # Start VRAM monitoring
         self.update_vram_display()
 
-        self.root.after(1000, self.controller.check_model_idle)
+        # Removed: self.root.after(1000, self.controller.check_model_idle)  # Not implemented
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         logger.info("Main window initialized")
@@ -106,9 +106,14 @@ class TranscriptionStudio:
         menubar.add_cascade(label=_("main_window.menu.tools"), menu=tools_menu)
         tools_menu.add_command(label=_("main_window.menu.tools_menu.settings"), 
                               command=self.open_settings)
+        tools_menu.add_command(label=_("main_window.menu.tools_menu.cache_stats"), 
+                       command=self.show_cache_stats)
         tools_menu.add_command(label=_("main_window.menu.tools_menu.open_deepseek"), 
                               command=self.controller.open_deepseek_window)
-
+        tools_menu.add_separator()
+        tools_menu.add_command(label=_("main_window.menu.tools_menu.cache_stats"), 
+                              command=self.show_cache_stats)
+        
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label=_("main_window.menu.help"), menu=help_menu)
@@ -224,9 +229,9 @@ class TranscriptionStudio:
                                                     bg="#1e1e1e", fg="#d4d4d4", insertbackground="white",
                                                     height=8)
         self.trans_toolbar = FormatToolbar(text_frame, self.text_area, self)
-        self.trans_toolbar.pack(fill="x", pady=(0,5))  # já existe
-        # Adicionar um espaço extra
-        ttk.Label(text_frame, text="").pack(pady=(0,2))  # linha vazia
+        self.trans_toolbar.pack(fill="x", pady=(0,5))
+        # Add an extra empty line
+        ttk.Label(text_frame, text="").pack(pady=(0,2))
         self.text_area.pack(fill="both", expand=True, pady=(0,5))
 
         btn_frame_trans = ttk.Frame(text_frame)
@@ -294,15 +299,8 @@ class TranscriptionStudio:
         status_label.i18n_key = None
         ToolTip(status_label, text_key="main_window.tooltips.status_bar")
 
-        # VRAM indicator label (agora como atributo self.vram_label, sem StringVar)
-        self.vram_label = ttk.Label(
-            status_frame,
-            text="VRAM: ...",
-            relief=tk.SUNKEN,
-            anchor=tk.E,
-            width=18,
-            foreground="white"   # Força cor clara para tema escuro
-        )
+        # VRAM indicator label (use direct text update, not StringVar for reliability)
+        self.vram_label = ttk.Label(status_frame, text="VRAM: ...", relief=tk.SUNKEN, anchor=tk.E, width=18, foreground="white")
         self.vram_label.pack(side=tk.RIGHT, padx=2)
         ToolTip(self.vram_label, "GPU memory usage (updated every 5s)")
 
@@ -383,13 +381,8 @@ class TranscriptionStudio:
         logger.debug("update_vram_display called")
         usage = self.controller.get_gpu_memory_usage()
         logger.debug(f"VRAM usage from controller: {usage}")
-        # Atualiza diretamente o texto do label
         self.vram_label.config(text=usage)
-        # Força atualização da interface
-        self.vram_label.update_idletasks()
-        # Log para confirmar que o texto foi alterado
-        logger.debug(f"Label text after config: {self.vram_label.cget('text')}")
-        # Agenda próxima atualização
+        self.vram_label.update_idletasks()  # Force immediate update
         self.root.after(5000, self.update_vram_display)
 
     # ==================== DELEGATED METHODS (FOR TRAY ICON) ====================
@@ -426,6 +419,19 @@ class TranscriptionStudio:
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
 
+    def show_cache_stats(self):
+        """Show translation cache statistics in a message box."""
+        stats = self.controller.get_translation_cache_stats()
+        if stats:
+            msg = _("settings_window.cache_stats",
+                    size=stats['size'],
+                    max_size=stats['max_size'],
+                    hits=stats['hits'],
+                    misses=stats['misses'])
+        else:
+            msg = _("settings_window.cache_stats_unavailable")
+        messagebox.showinfo(_("dialogs.cache_stats.title"), msg, parent=self.root)
+
     def on_closing(self):
         """Handle window close button: ask whether to exit or minimize to tray."""
         from frontend.dialogs import show_close_dialog
@@ -434,4 +440,4 @@ class TranscriptionStudio:
             self.hide_window()
         elif choice == 'exit':
             self.quit_app()
-        # else: cancel, não faz nada
+        # else: cancel, do nothing

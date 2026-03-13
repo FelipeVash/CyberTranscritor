@@ -8,6 +8,7 @@ Allows the user to configure:
 - TTS voice
 - Translation model
 - Idle timeout for GPU model unloading
+- Translation cache management
 All changes are applied immediately and saved to the configuration file.
 """
 
@@ -17,7 +18,7 @@ import ttkbootstrap as tb
 from utils.i18n import _
 from utils.logger import logger
 from utils.config_persistence import save_config
-from utils.tooltip import ToolTip  # <-- importação necessária
+from utils.tooltip import ToolTip
 import re
 
 class SettingsWindow:
@@ -39,7 +40,7 @@ class SettingsWindow:
         # Create the window
         self.window = tb.Toplevel(parent)
         self.window.title(_("settings_window.title"))
-        self.window.geometry("550x500")
+        self.window.geometry("600x550")  # Increased height for cache section
         self.window.transient(parent)
         self.window.grab_set()
         self.window.focus_force()
@@ -198,9 +199,43 @@ class SettingsWindow:
         )
         timeout_combo.grid(row=5, column=1, sticky=tk.W, padx=5, pady=5)
 
+        # ===== Translation Cache =====
+        # Separator
+        ttk.Separator(main_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky='ew', pady=10)
+
+        lbl_cache = ttk.Label(main_frame, text=_("settings_window.labels.translation_cache"), font=('TkDefaultFont', 10, 'bold'))
+        lbl_cache.grid(row=7, column=0, sticky=tk.W, pady=5)
+
+        # Button to clear cache
+        btn_clear_cache = ttk.Button(
+            main_frame,
+            text=_("settings_window.buttons.clear_cache"),
+            command=self._clear_cache,
+            width=20
+        )
+        btn_clear_cache.grid(row=7, column=1, sticky=tk.W, padx=5, pady=5)
+        ToolTip(btn_clear_cache, text_key="settings_window.tooltips.clear_cache")
+
+        # Optional: display cache stats (could be updated on demand)
+        self.cache_stats_var = tk.StringVar(value="")
+        lbl_stats = ttk.Label(main_frame, textvariable=self.cache_stats_var, foreground="gray")
+        lbl_stats.grid(row=8, column=1, sticky=tk.W, padx=5)
+
+        # Button to refresh stats (optional)
+        btn_refresh_stats = ttk.Button(
+            main_frame,
+            text=_("settings_window.buttons.refresh_stats"),
+            command=self._update_cache_stats,
+            width=15
+        )
+        btn_refresh_stats.grid(row=8, column=0, sticky=tk.W, padx=5, pady=5)
+
+        # Initialize stats
+        self._update_cache_stats()
+
         # ===== Buttons =====
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=9, column=0, columnspan=2, pady=20)
 
         btn_ok = ttk.Button(button_frame, text=_("settings_window.buttons.ok"), width=10,
                             command=self.ok)
@@ -216,6 +251,25 @@ class SettingsWindow:
 
         # Configure grid weights
         main_frame.columnconfigure(1, weight=1)
+
+    def _clear_cache(self):
+        """Clear the translation cache via controller."""
+        self.controller.clear_translation_cache()
+        self._update_cache_stats()
+        logger.info("Translation cache cleared from settings")
+
+    def _update_cache_stats(self):
+        """Update the cache statistics display."""
+        stats = self.controller.get_translation_cache_stats()
+        if stats:
+            text = _("settings_window.cache_stats",
+                    size=stats['size'],
+                    max_size=stats['max_size'],
+                    hits=stats['hits'],
+                    misses=stats['misses'])
+        else:
+            text = _("settings_window.cache_stats_unavailable")
+        self.cache_stats_var.set(text)
 
     def _apply(self):
         """Apply the selected settings to the controller and save configuration."""

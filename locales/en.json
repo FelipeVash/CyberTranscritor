@@ -21,7 +21,8 @@
       },
       "tools_menu": {
         "settings": "Settings",
-        "open_deepseek": "Open DeepSeek"
+        "open_deepseek": "Open DeepSeek",
+        "cache_stats": "Cache Statistics"
       },
       "help_menu": {
         "about": "About"
@@ -136,7 +137,8 @@
         "device": "Device:",
         "tts_voice": "TTS voice:",
         "translation_model": "Translation model:",
-        "idle_timeout": "Idle timeout (seconds):"
+        "idle_timeout": "Idle timeout (seconds):",
+        "translation_cache": "Translation Cache"
     },
     "tooltips": {
         "ui_language": "Select interface language",
@@ -144,13 +146,18 @@
         "device": "Inference device (GPU recommended)",
         "tts_voice": "Choose voice for speech synthesis",
         "translation_model": "Model for translation (larger = more accurate, but slower)",
-        "idle_timeout": "Time of inactivity before unloading models from GPU"
+        "idle_timeout": "Time of inactivity before unloading models from GPU",
+        "clear_cache": "Remove all cached translations"
     },
     "buttons": {
         "ok": "OK",
         "apply": "Apply",
-        "cancel": "Cancel"
-    }
+        "cancel": "Cancel",
+        "clear_cache": "Clear Cache",
+        "refresh_stats": "Refresh Stats"
+    },
+    "cache_stats": "Size: {size}/{max_size} | Hits: {hits} | Misses: {misses}",
+    "cache_stats_unavailable": "Statistics unavailable"
   },
   "deepseek_window": {
     "title": "🤖 DeepSeek - Audio Query",
@@ -234,6 +241,9 @@
       "minimize": "Minimize",
       "exit": "Exit",
       "cancel": "Cancel"
+    },
+    "cache_stats": {
+      "title": "Translation Cache Statistics"
     }
   },
   "tray": {
@@ -313,5 +323,8 @@
     "transcription": "Transcription error: {error}",
     "translation": "Translation error from {source} to {target}: {error}",
     "correction": "Grammar correction error: {error}"
+  },
+  "translation": {
+      "cache_cleared": "Translation cache cleared successfully."
   }
 }

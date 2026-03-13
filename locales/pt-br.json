@@ -21,7 +21,8 @@
       },
       "tools_menu": {
         "settings": "Configurações",
-        "open_deepseek": "Abrir DeepSeek"
+        "open_deepseek": "Abrir DeepSeek",
+        "cache_stats": "Estatísticas do Cache"
       },
       "help_menu": {
         "about": "Sobre"
@@ -136,7 +137,8 @@
         "device": "Dispositivo:",
         "tts_voice": "Voz TTS:",
         "translation_model": "Modelo de tradução:",
-        "idle_timeout": "Tempo de inatividade (segundos):"
+        "idle_timeout": "Tempo de inatividade (segundos):",
+        "translation_cache": "Cache de Traduções"
     },
     "tooltips": {
         "ui_language": "Selecionar idioma da interface",
@@ -144,13 +146,18 @@
         "device": "Dispositivo para inferência (GPU recomendada)",
         "tts_voice": "Escolher a voz para síntese de fala",
         "translation_model": "Modelo para tradução (maior = mais preciso, porém mais lento)",
-        "idle_timeout": "Tempo sem uso antes de descarregar modelos da GPU"
+        "idle_timeout": "Tempo sem uso antes de descarregar modelos da GPU",
+        "clear_cache": "Remove todas as traduções armazenadas em cache"
     },
     "buttons": {
         "ok": "OK",
         "apply": "Aplicar",
-        "cancel": "Cancelar"
-    }
+        "cancel": "Cancelar",
+        "clear_cache": "Limpar Cache",
+        "refresh_stats": "Atualizar Estatísticas"
+    },
+    "cache_stats": "Tamanho: {size}/{max_size} | Hits: {hits} | Misses: {misses}",
+    "cache_stats_unavailable": "Estatísticas indisponíveis"
   },
   "deepseek_window": {
     "title": "🤖 DeepSeek - Consulta por Áudio",
@@ -209,7 +216,10 @@
       "cancel": "Cancelar",
       "close": "Fechar",
       "correcting": "Corrigindo...",
-      "error": "Erro na correção: {error}"
+      "error": "Erro na correção: {error}",
+      "cache_stats": {
+          "title": "Estatísticas do Cache de Traduções"
+      }
     },
     "common": {
       "error": "Erro",
@@ -313,5 +323,8 @@
     "transcription": "Erro na transcrição: {error}",
     "translation": "Erro na tradução de {source} para {target}: {error}",
     "correction": "Erro na correção gramatical: {error}"
+  },
+  "translation": {
+      "cache_cleared": "Cache de traduções limpo com sucesso."
   }
 }
