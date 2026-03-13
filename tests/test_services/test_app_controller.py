@@ -10,7 +10,7 @@ def mock_controller():
     if CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
     # Cria o controller com D-Bus desabilitado
-    controller = AppController(enable_dbus=True)
+    controller = AppController(enable_dbus=False)   # <-- alteração aqui
     # Mocks para atributos de UI
     controller.text_area = MagicMock()
     controller.trans_area = MagicMock()
@@ -33,4 +33,75 @@ def mock_controller():
     controller.model_size.get.return_value = "tiny"
     controller.translate_target.get.return_value = "en"
     controller.tts_voice.get.return_value = "pt_BR-faber-medium"
+    
+    # Mock dos métodos que serão verificados nos testes
+    controller.show_info = MagicMock()
+    controller.start_progress = MagicMock()
+    controller.stop_progress = MagicMock()
+    
+    # Mock do translation_service e seus métodos
+    controller.translation_service = MagicMock()
+    controller.translation_service.clear_cache = MagicMock()
+    controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
+    
     return controller
+
+def test_controller_initialization(mock_controller):
+    """Testa se o controller é inicializado corretamente."""
+    assert mock_controller is not None
+    # Verifica se o D-Bus não foi iniciado
+    assert mock_controller.dbus_service is None
+
+def test_clear_translation_cache(mock_controller):
+    """Testa o método clear_translation_cache."""
+    mock_controller.clear_translation_cache()
+    mock_controller.translation_service.clear_cache.assert_called_once()
+    mock_controller.show_info.assert_called_once()
+
+def test_get_translation_cache_stats(mock_controller):
+    """Testa o método get_translation_cache_stats."""
+    stats = mock_controller.get_translation_cache_stats()
+    assert stats == {"size": 0, "max_size": 1000, "hits": 0, "misses": 0}
+
+def test_toggle_recording(mock_controller):
+    """Testa o método toggle_recording."""
+    mock_controller._toggle_recording_action = MagicMock()
+    mock_controller.toggle_recording()
+    mock_controller._toggle_recording_action.assert_called_once()
+
+def test_start_recording(mock_controller):
+    """Testa o método start_recording."""
+    with patch('backend.audio.recorder.AudioRecorder') as MockRecorder:
+        mock_recorder = MagicMock()
+        MockRecorder.return_value = mock_recorder
+        
+        mock_controller.start_recording()
+        
+        assert mock_controller.is_recording is True
+        mock_controller.text_area.delete.assert_called()
+        mock_controller.trans_area.delete.assert_called()
+        mock_controller.btn_record.config.assert_called()
+        mock_controller.btn_deepseek.config.assert_called_with(state="disabled")
+        mock_controller.rec_indicator.config.assert_called()
+        mock_controller.status_var.set.assert_called()
+
+def test_stop_and_transcribe(mock_controller):
+    """Testa o método stop_and_transcribe."""
+    # Configura um recorder mock
+    mock_controller.recorder = MagicMock()
+    mock_controller.recorder.stop.return_value = MagicMock(size=100)
+    mock_controller.is_recording = True
+
+    # Mock da thread para não executar de fato
+    with patch('threading.Thread') as MockThread:
+        mock_thread = MagicMock()
+        MockThread.return_value = mock_thread
+
+        mock_controller.stop_and_transcribe()
+
+        assert mock_controller.is_recording is False
+        mock_controller.btn_record.config.assert_called()
+        mock_controller.rec_indicator.config.assert_called()
+        mock_controller.status_var.set.assert_called()
+        mock_controller.start_progress.assert_called_once()
+        mock_thread.start.assert_called_once()

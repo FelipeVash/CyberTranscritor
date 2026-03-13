@@ -38,8 +38,13 @@ class AppController:
     Manages state, coordinates services, and handles UI actions.
     """
 
-    def __init__(self):
-        """Initialize controller, load config, set up services and D-Bus."""
+    def __init__(self, enable_dbus=True):
+        """
+        Initialize controller, load config, set up services and D-Bus.
+
+        Args:
+            enable_dbus: If False, D-Bus service is not initialized (used for testing)
+        """
         logger.info("Initializing AppController")
         
         config_file_exists = CONFIG_FILE.exists()
@@ -89,9 +94,19 @@ class AppController:
         self.deepseek_client = DeepSeekClient()
         self.audio_player = AudioPlayer()
         self.transcription_service = TranscriptionService(self.model_manager)
-        self.translation_service = TranslationService(self.model_manager)
+        self.translation_service = TranslationService(self.model_manager, cache_size=1000)
         self.correction_service = CorrectionService()
         self.background_recorder = BackgroundRecorder(self)
+
+        # D-Bus service (optional, disabled in tests)
+        self.enable_dbus = enable_dbus
+        self.dbus_queue = queue.Queue()
+        if enable_dbus:
+            self.dbus_service = DBusService(self)
+        else:
+            self.dbus_service = None
+            logger.debug("D-Bus disabled (testing mode)")
+        logger.info("AppController initialized successfully")
 
         # UI references (to be set later)
         self.text_area = None
@@ -112,8 +127,6 @@ class AppController:
         self.translation_model = None
         self.idle_timeout = None
 
-        self.dbus_queue = queue.Queue()
-        self.dbus_service = DBusService(self)
         logger.info("AppController initialized successfully")
 
     def init_variables(self, root):
