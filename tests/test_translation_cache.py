@@ -1,9 +1,10 @@
+# tests/test_translation_cache.py
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from backend.services.translation_service import TranslationService, TranslationCache
 
 def test_cache_hit():
-    """Repetir a mesma tradução deve retornar do cache sem chamar o tradutor."""
+    """Repeating the same translation should return from cache without calling translator."""
     mock_model_manager = Mock()
     mock_translator = Mock()
     mock_model_manager.get_translator.return_value = mock_translator
@@ -11,22 +12,23 @@ def test_cache_hit():
     
     text = "hello"
     source, target = "en", "pt"
+    model_size = "nllb-200M"
     translation = "olá"
     
-    # Primeira chamada
+    # First call
     mock_translator.translate.return_value = translation
-    result1 = service.translate(text, source, target)
+    result1 = service.translate_with_translator(mock_translator, text)
     assert result1 == translation
     assert mock_translator.translate.call_count == 1
     
-    # Segunda chamada (deve vir do cache)
+    # Second call (should come from cache)
     mock_translator.translate.reset_mock()
-    result2 = service.translate(text, source, target)
+    result2 = service.translate_with_translator(mock_translator, text)
     assert result2 == translation
     mock_translator.translate.assert_not_called()
 
 def test_cache_miss():
-    """Textos diferentes devem gerar chamadas diferentes ao tradutor."""
+    """Different texts should cause different calls to translator."""
     mock_model_manager = Mock()
     mock_translator = Mock()
     mock_model_manager.get_translator.return_value = mock_translator
@@ -34,22 +36,22 @@ def test_cache_miss():
     
     mock_translator.translate.side_effect = ["olá", "adeus"]
     
-    result1 = service.translate("hello", "en", "pt")
-    result2 = service.translate("goodbye", "en", "pt")
+    result1 = service.translate_with_translator(mock_translator, "hello")
+    result2 = service.translate_with_translator(mock_translator, "goodbye")
     
     assert mock_translator.translate.call_count == 2
     assert result1 == "olá"
     assert result2 == "adeus"
 
 def test_cache_clear():
-    """Limpar o cache deve remover todas as entradas."""
+    """Clearing the cache should remove all entries."""
     mock_model_manager = Mock()
     mock_translator = Mock()
     mock_model_manager.get_translator.return_value = mock_translator
     service = TranslationService(mock_model_manager, cache_size=10)
     
     mock_translator.translate.return_value = "olá"
-    service.translate("hello", "en", "pt")
+    service.translate_with_translator(mock_translator, "hello")
     assert service.cache.stats()["size"] == 1
     
     service.clear_cache()
@@ -58,7 +60,7 @@ def test_cache_clear():
     assert service.cache.stats()["misses"] == 0
 
 def test_cache_lru():
-    """Quando o cache atinge o limite, a entrada mais antiga deve ser removida."""
+    """When cache reaches limit, oldest entry should be removed."""
     mock_model_manager = Mock()
     mock_translator = Mock()
     mock_model_manager.get_translator.return_value = mock_translator
@@ -66,30 +68,38 @@ def test_cache_lru():
     
     mock_translator.translate.side_effect = ["um", "dois", "três"]
     
-    service.translate("text1", "en", "pt")
-    service.translate("text2", "en", "pt")
+    # Set model_size manually on translator mock
+    mock_translator.source_lang = "en"
+    mock_translator.target_lang = "pt"
+    mock_translator.model_size = "nllb-200M"
+    
+    service.translate_with_translator(mock_translator, "text1")
+    service.translate_with_translator(mock_translator, "text2")
     assert service.cache.stats()["size"] == 2
     
-    # Esta chamada deve remover "text1" (o mais antigo)
-    service.translate("text3", "en", "pt")
+    # This call should remove "text1" (the oldest)
+    service.translate_with_translator(mock_translator, "text3")
     assert service.cache.stats()["size"] == 2
     
-    # "text1" não deve estar mais no cache
-    cached = service.cache.get("text1", "en", "pt")
+    # "text1" should no longer be in cache
+    cached = service.cache.get("text1", "en", "pt", "nllb-200M")
     assert cached is None
 
 def test_cache_stats():
-    """As estatísticas do cache devem refletir acertos e erros."""
+    """Cache statistics should reflect hits and misses."""
     mock_model_manager = Mock()
     mock_translator = Mock()
     mock_model_manager.get_translator.return_value = mock_translator
     service = TranslationService(mock_model_manager, cache_size=10)
     
+    mock_translator.source_lang = "en"
+    mock_translator.target_lang = "pt"
+    mock_translator.model_size = "nllb-200M"
     mock_translator.translate.return_value = "olá"
     
-    service.translate("hello", "en", "pt")  # miss
-    service.translate("hello", "en", "pt")  # hit
-    service.translate("goodbye", "en", "pt") # miss
+    service.translate_with_translator(mock_translator, "hello")  # miss
+    service.translate_with_translator(mock_translator, "hello")  # hit
+    service.translate_with_translator(mock_translator, "goodbye")  # miss
     
     stats = service.cache_stats()
     assert stats["hits"] == 1

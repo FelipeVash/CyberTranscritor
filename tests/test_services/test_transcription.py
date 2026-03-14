@@ -13,7 +13,8 @@ def test_transcribe_success(mock_model_manager):
     service = TranscriptionService(mock_model_manager)
     result = service.transcribe(b"fake audio", language="pt", model_size="tiny")
     assert result == "transcribed text"
-    mock_model_manager.get_transcriber.assert_called_with("tiny")
+    # Use assert_called_with with keyword argument to match the actual call
+    mock_model_manager.get_transcriber.assert_called_with(model_size="tiny")
 
 def test_transcribe_error_handling(mock_model_manager):
     mock_model_manager.get_transcriber.return_value.transcribe.side_effect = Exception("API error")

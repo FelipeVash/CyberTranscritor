@@ -24,6 +24,7 @@ class TranslationCache:
     """
     LRU cache for translations.
     Stores up to max_size entries, discarding least recently used when full.
+    Cache keys include model size to differentiate between fast and precise translations.
     """
     def __init__(self, max_size=1000):
         self.max_size = max_size
@@ -31,31 +32,28 @@ class TranslationCache:
         self.hits = 0
         self.misses = 0
 
-    def _make_key(self, text, source_lang, target_lang):
-        """Create a unique cache key."""
-        # Use a tuple as key (hashable)
-        return (source_lang, target_lang, text)
+    def _make_key(self, text, source_lang, target_lang, model_size):
+        """Create a unique cache key including model size."""
+        return (source_lang, target_lang, model_size, text)
 
-    def get(self, text, source_lang, target_lang):
+    def get(self, text, source_lang, target_lang, model_size):
         """Return cached translation if exists, else None."""
-        key = self._make_key(text, source_lang, target_lang)
+        key = self._make_key(text, source_lang, target_lang, model_size)
         if key in self.cache:
-            # Move to end to mark as recently used
             self.cache.move_to_end(key)
             self.hits += 1
-            logger.debug(f"Cache hit for {source_lang}->{target_lang}")
+            logger.debug(f"Cache hit for {source_lang}->{target_lang} (model={model_size})")
             return self.cache[key]
         self.misses += 1
-        logger.debug(f"Cache miss for {source_lang}->{target_lang}")
+        logger.debug(f"Cache miss for {source_lang}->{target_lang} (model={model_size})")
         return None
 
-    def put(self, text, source_lang, target_lang, translation):
+    def put(self, text, source_lang, target_lang, model_size, translation):
         """Store translation in cache."""
-        key = self._make_key(text, source_lang, target_lang)
+        key = self._make_key(text, source_lang, target_lang, model_size)
         self.cache[key] = translation
         self.cache.move_to_end(key)
         if len(self.cache) > self.max_size:
-            # Remove least recently used (first item)
             removed = self.cache.popitem(last=False)
             logger.debug(f"Cache full, removed oldest entry: {removed[0]}")
 
@@ -94,6 +92,7 @@ class TranslationService:
     def translate(self, text, source_lang="pt", target_lang="en"):
         """
         Translate text from source_lang to target_lang, using cache if possible.
+        This method obtains a translator from the model manager and uses it.
 
         Args:
             text: string to be translated
@@ -110,39 +109,64 @@ class TranslationService:
             logger.debug("Empty text, returning empty string")
             return ""
 
+        # Obtain translator (will load appropriate model)
+        translator = self.model_manager.get_translator(source_lang, target_lang)
+        return self.translate_with_translator(translator, text)
+
+    def translate_with_translator(self, translator, text):
+        """
+        Translate text using a provided translator instance, with caching.
+        This method is used when the translator is already obtained (e.g., for lazy loading).
+
+        Args:
+            translator: Translator instance
+            text: string to be translated
+
+        Returns:
+            Translated string.
+
+        Raises:
+            TranslationError: if translation fails
+        """
+        if not text or not text.strip():
+            logger.debug("Empty text, returning empty string")
+            return ""
+
+        source = translator.source_lang
+        target = translator.target_lang
+        model_size = translator.model_size
+
         # Check cache first
-        cached = self.cache.get(text, source_lang, target_lang)
+        cached = self.cache.get(text, source, target, model_size)
         if cached is not None:
             return cached
 
         try:
-            logger.debug(f"Starting translation: {source_lang} -> {target_lang}")
-            translator = self.model_manager.get_translator(source_lang, target_lang)
+            logger.debug(f"Starting translation with {model_size}: {source} -> {target}")
             result = translator.translate(text)
 
             # Check if result indicates an error
             if result.startswith("[Error:") or result.startswith("❌"):
                 logger.error(f"Translation returned error: {result}")
                 raise TranslationError("translation.error.generic",
-                                      source=source_lang,
-                                      target=target_lang,
+                                      source=source,
+                                      target=target,
                                       error=result)
 
             # Store in cache
-            self.cache.put(text, source_lang, target_lang, result)
+            self.cache.put(text, source, target, model_size, result)
 
-            logger.info(f"Translation completed: {source_lang} -> {target_lang}")
+            logger.info(f"Translation completed: {source} -> {target} ({model_size})")
             return result
         except TranslationError:
-            # Already logged, re-raise
             raise
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"Translation failed ({source_lang}->{target_lang}): {error_msg}")
+            logger.error(f"Translation failed ({source}->{target}): {error_msg}")
             logger.debug(traceback.format_exc())
             raise TranslationError("translation.error.generic",
-                                  source=source_lang,
-                                  target=target_lang,
+                                  source=source,
+                                  target=target,
                                   error=error_msg) from e
 
     def clear_cache(self):

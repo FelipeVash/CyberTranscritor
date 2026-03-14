@@ -1,6 +1,5 @@
-# backend/translator.py
 """
-Translation module using Meta's NLLB-200-3.3B model.
+Translation module using Meta's NLLB-200 models.
 Executes 100% locally with GPU support.
 All logging is done through the centralized logger.
 """
@@ -15,24 +14,43 @@ from utils.logger import logger
 
 class Translator:
     """
-    Translator using the NLLB-200-3.3B model from Meta.
-    Supports GPU acceleration (CUDA/ROCm) and CPU fallback.
+    Translator using NLLB models from Meta.
+    Supports different model sizes and GPU acceleration (CUDA/ROCm).
     """
 
-    def __init__(self, source_lang="pt", target_lang="en", device=None):
+    # Mapping from our model size keys to Hugging Face model IDs
+    MODEL_MAP = {
+        "nllb-200M": "facebook/nllb-200-distilled-600M",   # actually 600M, but it's the smallest distilled
+        "nllb-600M": "facebook/nllb-200-distilled-600M",
+        "nllb-1.3B": "facebook/nllb-200-1.3B",
+        "nllb-3.3B": "facebook/nllb-200-3.3B"
+    }
+
+    def __init__(self, source_lang="pt", target_lang="en", model_size="nllb-3.3B", device=None):
         """
         Initialize the translator and load the model.
 
         Args:
             source_lang: Source language code (e.g., 'pt')
             target_lang: Target language code (e.g., 'en')
+            model_size: Size of the NLLB model (e.g., 'nllb-200M', 'nllb-3.3B')
             device: 'cuda' or 'cpu' (if 'cuda' not available, falls back to cpu)
         """
         self.source_lang = source_lang
         self.target_lang = target_lang
-        self.device = torch.device("cuda:0" if device == "cuda" and torch.cuda.is_available() else "cpu")
-        self.model_name = "facebook/nllb-200-3.3B"
-        logger.info(f"Loading NLLB-200-3.3B ({source_lang} -> {target_lang})...")
+        self.model_size = model_size
+
+        # Determine device
+        if device == "cuda" and torch.cuda.is_available():
+            self.device = torch.device("cuda:0")
+            self.device_name = "cuda"
+        else:
+            self.device = torch.device("cpu")
+            self.device_name = "cpu"
+
+        # Get actual model name from map
+        self.model_name = self.MODEL_MAP.get(model_size, "facebook/nllb-200-3.3B")
+        logger.info(f"Loading {self.model_name} ({source_lang} -> {target_lang})...")
 
         # Check if source and target languages are supported
         if source_lang not in FLORES_CODES:
@@ -46,44 +64,27 @@ class Translator:
             src_lang=FLORES_CODES[source_lang]
         )
 
-        # Load model with optimizations for GPU
+        # Load model with appropriate dtype
+        torch_dtype = torch.float16 if self.device.type == "cuda" else torch.float32
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
             self.model_name,
-            torch_dtype=torch.float16 if self.device.type == "cuda" else torch.float32,
-            device_map="auto" if self.device.type == "cuda" else None,
+            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True
         )
+        self.model = self.model.to(self.device)
 
-        if self.device.type == "cpu":
-            self.model = self.model.to(self.device)
-
-        # Determine the correct attribute for language code mapping
-        # Some versions use 'lang_code_to_id', others use 'converter'
-        if hasattr(self.tokenizer, 'lang_code_to_id'):
-            self.lang_code_attr = 'lang_code_to_id'
-        elif hasattr(self.tokenizer, '_lang_code_to_id'):
-            self.lang_code_attr = '_lang_code_to_id'
-        elif hasattr(self.tokenizer, 'converter') and hasattr(self.tokenizer.converter, 'lang_code_to_id'):
-            # For older versions where tokenizer has a converter
-            self.lang_code_attr = 'converter.lang_code_to_id'
-        else:
-            # Fallback: try to access via tokenizer's vocab
-            logger.warning("Could not find lang_code_to_id attribute. Attempting fallback.")
-            self.lang_code_attr = None
-
-        logger.info("NLLB model loaded successfully")
+        logger.info(f"NLLB model loaded successfully on {self.device_name}")
 
     def _get_forced_bos_token_id(self):
         """Get the forced BOS token ID for the target language."""
         target_flores = FLORES_CODES[self.target_lang]
         token_str = f"__{target_flores}__"
-        
-        # Tenta obter o ID diretamente
+
+        # Try to get the ID directly
         token_id = self.tokenizer.convert_tokens_to_ids(token_str)
-        
-        # Se for o token desconhecido (unk_token_id), tenta buscar no vocabulário
+
+        # If it's the unknown token, search vocabulary for any token containing the FLORES code
         if token_id == self.tokenizer.unk_token_id:
-            # Procura qualquer token que contenha o código FLORES
             vocab = self.tokenizer.get_vocab()
             for t, idx in vocab.items():
                 if target_flores in t:
@@ -92,10 +93,10 @@ class Translator:
                     break
             else:
                 raise RuntimeError(f"Token for language {self.target_lang} ({target_flores}) not found in vocabulary")
-        
+
         logger.debug(f"Forced BOS token ID for {self.target_lang}: {token_id}")
         return token_id
-    
+
     def translate(self, text):
         """
         Translate text from source_lang to target_lang.
@@ -106,8 +107,6 @@ class Translator:
         Returns:
             Translated string, or error message prefixed with "[Error:]"
         """
-        forced_bos_token_id = self._get_forced_bos_token_id()
-        logger.debug(f"Using forced_bos_token_id={forced_bos_token_id}")
         if not text.strip():
             return ""
 
@@ -119,7 +118,14 @@ class Translator:
                 padding=True,
                 truncation=True,
                 max_length=512
-            ).to(self.device)
+            )
+            # Move inputs to the same device as the model
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+            # Convert inputs to the model's dtype (if model is half, inputs should be half)
+            model_dtype = next(self.model.parameters()).dtype
+            if model_dtype == torch.float16:
+                inputs = {k: v.half() if v.dtype == torch.float32 else v for k, v in inputs.items()}
 
             # Force the target language in the decoder
             forced_bos_token_id = self._get_forced_bos_token_id()
@@ -135,14 +141,13 @@ class Translator:
                 )
 
             translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Garantir que a string seja UTF-8 limpa
+
+            # Ensure string is clean UTF-8
             if isinstance(translated, bytes):
                 translated = translated.decode('utf-8', errors='ignore')
             else:
-                # Forçar conversão para string e remover caracteres problemáticos
                 translated = str(translated).encode('utf-8', errors='ignore').decode('utf-8')
-            
+
             logger.debug(f"Translation ({self.source_lang}->{self.target_lang}): {translated[:50]}...")
             return translated.strip()
 
@@ -153,12 +158,12 @@ class Translator:
     def unload(self):
         """Unload the model from GPU to free memory."""
         if hasattr(self, 'model') and self.model is not None:
-            logger.info("Unloading NLLB model from GPU")
+            logger.info(f"Unloading NLLB model {self.model_size} from {self.device_name}")
             self.model.cpu()
             del self.model
             self.model = None
         if hasattr(self, 'tokenizer') and self.tokenizer is not None:
             del self.tokenizer
             self.tokenizer = None
-        if torch.cuda.is_available():
+        if self.device.type == "cuda" and torch.cuda.is_available():
             torch.cuda.empty_cache()
