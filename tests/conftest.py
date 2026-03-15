@@ -1,4 +1,6 @@
 # tests/conftest.py
+import sys
+from unittest.mock import MagicMock, patch
 import pytest
 from pathlib import Path
 import tempfile
@@ -6,37 +8,53 @@ import json
 import logging
 import time
 import gc
-from unittest.mock import MagicMock, patch
+import threading
 
+# ============================================================================
+# Global mocks for problematic modules that might create threads or access hardware
+# ============================================================================
+
+# Mock sounddevice to prevent real audio hardware access
+mock_sounddevice = MagicMock()
+mock_sounddevice.InputStream = MagicMock()
+mock_sounddevice._terminate = MagicMock()
+
+# Configure InputStream mock to return a tuple (audio_data, overflow_flag)
+# to avoid "ValueError: not enough values to unpack" in recorder thread
+mock_stream = MagicMock()
+mock_stream.read.return_value = ([], False)
+mock_sounddevice.InputStream.return_value = mock_stream
+
+sys.modules['sounddevice'] = mock_sounddevice
+
+# Mock piper and piper_tts to prevent loading real models
+mock_piper = MagicMock()
+sys.modules['piper'] = mock_piper
+sys.modules['piper_tts'] = mock_piper
+
+# Note: torch is NOT mocked globally, as it is needed for transformers import checks.
+# It will be imported normally. We'll mock specific torch components in tests if needed.
+
+# ============================================================================
+# Now import application modules (safe after mocks)
+# ============================================================================
 from utils.logger import logger as app_logger
 from utils.config_persistence import CONFIG_FILE
 from controller.app_controller import AppController
 import tkinter as tk
-import sounddevice as sd
+
+# ============================================================================
+# Fixtures
+# ============================================================================
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_resources():
     """
     Clean up resources after all tests to prevent leaks and SIGSEGV.
-    Attempts to terminate sounddevice, clear CUDA cache, and run garbage collection.
+    With sounddevice mocked, no real threads should exist, but we keep as safety.
     """
     yield
-    # Give threads a moment to finish
-    time.sleep(0.5)
-    # Terminate sounddevice
-    try:
-        sd._terminate()
-    except Exception:
-        pass
-    # Clear CUDA cache if torch is available
-    try:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-    except ImportError:
-        pass
-    # Run garbage collection
+    time.sleep(0.1)
     gc.collect()
 
 @pytest.fixture(scope="session", autouse=True)

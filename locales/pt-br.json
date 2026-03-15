@@ -168,10 +168,10 @@
     "title": "🤖 DeepSeek - Consulta por Áudio",
     "options_frame": "⚙️ Opções de Consulta",
     "controls": {
-      "record": "▶ INICIAR GRAVAÇÃO",
-      "stop_record": "⏹ PARAR E ENVIAR",
+      "record": "▶ Gravar",
+      "stop_record": "⏹ Parar e enviar",
       "record_tooltip": "Iniciar gravação de áudio (Ctrl+R)",
-      "send_text": "📤 ENVIAR TEXTO",
+      "send_text": "📤 Enviar",
       "send_tooltip": "Enviar texto digitado (Enter)",
       "stop_audio": "⏹ Parar Áudio",
       "stop_audio_tooltip": "Parar a reprodução de áudio em andamento",

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "language": "en",
-    "language_name": "English"
+    "language": "en-US",
+    "language_name": "English (US)"
   },
   "main_window": {
     "title": "Cyberpunk Transcription Studio",
@@ -64,7 +64,7 @@
       "strike": "S",
       "strike_tooltip": "Strikethrough",
       "font_size": "Size ▼",
-      "font_size_tooltip": "Change font size (whole text)",
+      "font_size_tooltip": "Change font size (entire text)",
       "color": "🎨",
       "color_tooltip": "Apply color to selected text",
       "heading": "H",
@@ -80,9 +80,9 @@
       "align_justify": "↔",
       "align_justify_tooltip": "Justify paragraph",
       "indent_increase": "⇢",
-      "indent_increase_tooltip": "Increase indent (add 4 spaces)",
+      "indent_increase_tooltip": "Increase indentation (add 4 spaces)",
       "indent_decrease": "⇠",
-      "indent_decrease_tooltip": "Decrease indent (remove 4 spaces)",
+      "indent_decrease_tooltip": "Decrease indentation (remove 4 spaces)",
       "numbered_list": "1.",
       "numbered_list_tooltip": "Insert/continue numbered list (Enter increments)",
       "bullet_list": "•",
@@ -112,13 +112,13 @@
       "loading_model": "⏳ Loading model {model}...",
       "model_loaded": "✅ Model {model} loaded.",
       "transcribing": "⏳ Transcribing...",
-      "transcribing_done": "✅ Transcription complete.",
+      "transcribing_done": "✅ Transcription completed.",
       "translating": "⏳ Translating...",
-      "translating_done": "✅ Translation complete.",
+      "translating_done": "✅ Translation completed.",
       "saving": "💾 Saving...",
       "saved": "✅ Saved to {filename}",
       "correcting": "✍️ Correcting...",
-      "correcting_done": "✅ Correction complete.",
+      "correcting_done": "✅ Correction completed.",
       "precise_transcription_done": "Refined transcription completed",
       "loading_precise_translator": "Loading precise translation model...",
       "refining_translation": "Refining translation...",
@@ -137,46 +137,46 @@
   "settings_window": {
     "title": "Settings",
     "labels": {
-        "ui_language": "Interface language:",
-        "whisper_model": "Whisper model:",
-        "device": "Device:",
-        "tts_voice": "TTS voice:",
-        "translation_model": "Translation model:",
-        "idle_timeout": "Idle timeout (seconds):",
-        "translation_cache": "Translation Cache"
+      "ui_language": "Interface language:",
+      "whisper_model": "Whisper model:",
+      "device": "Device:",
+      "tts_voice": "TTS voice:",
+      "translation_model": "Translation model:",
+      "idle_timeout": "Idle timeout (seconds):",
+      "translation_cache": "Translation Cache"
     },
     "tooltips": {
-        "ui_language": "Select interface language",
-        "whisper_model": "Model for transcription (larger = more accurate, but slower)",
-        "device": "Inference device (GPU recommended)",
-        "tts_voice": "Choose voice for speech synthesis",
-        "translation_model": "Model for translation (larger = more accurate, but slower)",
-        "idle_timeout": "Time of inactivity before unloading models from GPU",
-        "clear_cache": "Remove all cached translations"
+      "ui_language": "Select interface language",
+      "whisper_model": "Model for transcription (larger = more accurate, slower)",
+      "device": "Inference device (GPU recommended)",
+      "tts_voice": "Choose voice for speech synthesis",
+      "translation_model": "Model for translation (larger = more accurate, slower)",
+      "idle_timeout": "Idle time before unloading models from GPU",
+      "clear_cache": "Remove all cached translations"
     },
     "buttons": {
-        "ok": "OK",
-        "apply": "Apply",
-        "cancel": "Cancel",
-        "clear_cache": "Clear Cache",
-        "refresh_stats": "Refresh Stats"
+      "ok": "OK",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "clear_cache": "Clear Cache",
+      "refresh_stats": "Refresh Stats"
     },
     "cache_stats": "Size: {size}/{max_size} | Hits: {hits} | Misses: {misses}",
     "cache_stats_unavailable": "Statistics unavailable"
   },
   "deepseek_window": {
-    "title": "🤖 DeepSeek - Audio Query",
+    "title": "🤖 DeepSeek - Voice Query",
     "options_frame": "⚙️ Query Options",
     "controls": {
-      "record": "▶ START RECORDING",
-      "stop_record": "⏹ STOP AND SEND",
+      "record": "▶ Record",
+      "stop_record": "⏹ Stop & Send",
       "record_tooltip": "Start audio recording (Ctrl+R)",
-      "send_text": "📤 SEND TEXT",
+      "send_text": "📤 Send",
       "send_tooltip": "Send typed text (Enter)",
       "stop_audio": "⏹ Stop Audio",
-      "stop_audio_tooltip": "Stop audio playback",
+      "stop_audio_tooltip": "Stop ongoing audio playback",
       "listen": "🔊 Listen to response",
-      "listen_tooltip": "Listen to last response (TTS)",
+      "listen_tooltip": "Listen to the last response (TTS)",
       "tts_unavailable": "🔊 TTS unavailable"
     },
     "options": {
@@ -190,7 +190,7 @@
     "labels": {
       "history": "📜 History",
       "input": "✏️ Input (type or use audio)",
-      "status_idle": "⏹ Idle",
+      "status_idle": "⏹ Stopped",
       "status_recording": "🔴 Recording...",
       "status_transcribing": "⏳ Transcribing...",
       "status_consulting": "⏳ Consulting DeepSeek...",
@@ -221,7 +221,10 @@
       "cancel": "Cancel",
       "close": "Close",
       "correcting": "Correcting...",
-      "error": "Correction error: {error}"
+      "error": "Correction error: {error}",
+      "cache_stats": {
+        "title": "Translation Cache Statistics"
+      }
     },
     "common": {
       "error": "Error",
@@ -237,18 +240,15 @@
     "about": {
       "title": "About Cyberpunk Transcription Studio",
       "version": "Version 1.0.0",
-      "description": "A privacy-focused transcription application running models locally.",
+      "description": "A privacy-focused transcription app, running models locally.",
       "license": "Licensed under MIT License"
     },
     "close_dialog": {
       "title": "Exit or minimize?",
-      "message": "Do you want to exit the application or minimize it to the system tray?",
+      "message": "Do you really want to exit the application or minimize it to tray?",
       "minimize": "Minimize",
       "exit": "Exit",
       "cancel": "Cancel"
-    },
-    "cache_stats": {
-      "title": "Translation Cache Statistics"
     }
   },
   "tray": {
@@ -266,24 +266,24 @@
       "background_start": "Speak now. Press Super+0 again to stop.",
       "background_timeout_title": "⏹️ Timeout",
       "background_timeout": "Silence timeout reached.",
-      "background_no_audio_title": "⚠️ No audio",
+      "background_no_audio_title": "⚠️ Nothing recorded",
       "background_no_audio": "No audio detected.",
       "background_processing_title": "⏳ Processing",
-      "background_processing": "Transcribing and querying DeepSeek...",
-      "deepseek_response_title": "🤖 DeepSeek response",
-      "app_minimized": "Application minimized",
+      "background_processing": "Transcribing and consulting DeepSeek...",
+      "deepseek_response_title": "🤖 DeepSeek Response",
+      "app_minimized": "App minimized",
       "app_minimized_msg": "The program continues in the background.",
       "language_changed_title": "Language changed",
-      "language_changed_msg": "Restart the application to fully apply language changes.",
-      "precise_translation_ready": "Refined translation ready"
+      "language_changed_msg": "Restart the app to fully apply language changes.",
+      "precise_translation_ready": "Refined translation available"
     }
   },
   "prompts": {
     "deepseek_system": "You are a helpful and concise assistant.",
     "deepseek_user": "{text}",
     "deepseek_user_with_web": "User query: {text}\n\nInternet search results (current):\n{web_results}\n\nBased on the information above, answer the user's query completely and up-to-date.",
-    "correction": "Correct the grammar of the following text in {language}, keeping the original meaning:\n\n{text}",
-    "translation": "Translate the following segment from {source_lang} to {target_lang}, without additional explanation.\n\n{text}",
+    "correction": "Correct the grammar of the following text in {language}, preserving the original meaning:\n\n{text}",
+    "translation": "Translate the following segment from {source_lang} to {target_lang}, without additional explanations.\n\n{text}",
     "thinking_prefix": "Let's think step by step."
   },
   "common": {
@@ -331,6 +331,6 @@
     "correction": "Grammar correction error: {error}"
   },
   "translation": {
-      "cache_cleared": "Translation cache cleared successfully."
+    "cache_cleared": "Translation cache cleared successfully."
   }
 }
