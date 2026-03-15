@@ -1,8 +1,16 @@
 # utils/i18n.py
+"""
+Internationalization (i18n) module.
+Handles translation of UI strings using JSON files.
+Supports multiple languages and provides helper functions.
+All logging is done through the centralized logger.
+"""
+
 import json
 import locale
 import os
 from pathlib import Path
+from utils.logger import logger
 
 class I18n:
     """Internationalization manager with support for nested keys."""
@@ -36,20 +44,21 @@ class I18n:
         file_path = self.localedir / f"{lang_code}.json"
         
         if not file_path.exists() and lang_code != 'en':
-            print(f"Language file {lang_code}.json not found. Using English.")
+            logger.warning(f"Language file {lang_code}.json not found. Using English.")
             file_path = self.localedir / "en.json"
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 self.translations = json.load(f)
+            logger.info(f"Loaded language: {lang_code}")
         except Exception as e:
-            print(f"Error loading translations: {e}")
+            logger.error(f"Error loading translations: {e}")
             self.translations = {}
     
     def get(self, key, **kwargs):
-        # Handle pt-br as pt for common.languages
-        if key.startswith("common.languages.") and "pt-br" in key:
-            key = key.replace("pt-br", "pt")
+        """Get translated string for key, with optional formatting."""
+        # Note: We no longer replace 'pt-br' with 'pt' in language keys.
+        # Each language code should have its own entry in the JSON files.
         keys = key.split('.')
         value = self.translations
         try:
@@ -63,12 +72,11 @@ class I18n:
 
     def get_language_display(self, lang_code):
         """
-        Return a display string for the language, e.g., "Portuguese (pt-br)".
-        Uses the translation of the key "common.languages.<code>" as the language name.
+        Return a display string for the language, e.g., "Português (pt-br)".
+        Uses the translation of "common.languages.<code>" as the language name.
         """
         name_key = f"common.languages.{lang_code}"
         name = self.get(name_key)
-        # If the key is not found, fallback to the code itself
         if name == name_key:
             name = lang_code
         return f"{name} ({lang_code})"

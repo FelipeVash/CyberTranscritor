@@ -38,13 +38,8 @@ class AppController:
     Manages state, coordinates services, and handles UI actions.
     """
 
-    def __init__(self, enable_dbus=True):
-        """
-        Initialize controller, load config, set up services and D-Bus.
-
-        Args:
-            enable_dbus: If False, D-Bus service is not initialized (used for testing)
-        """
+    def __init__(self):
+        """Initialize controller, load config, set up services and D-Bus."""
         logger.info("Initializing AppController")
         
         config_file_exists = CONFIG_FILE.exists()
@@ -94,19 +89,9 @@ class AppController:
         self.deepseek_client = DeepSeekClient()
         self.audio_player = AudioPlayer()
         self.transcription_service = TranscriptionService(self.model_manager)
-        self.translation_service = TranslationService(self.model_manager, cache_size=1000)
+        self.translation_service = TranslationService(self.model_manager)
         self.correction_service = CorrectionService()
         self.background_recorder = BackgroundRecorder(self)
-
-        # D-Bus service (optional, disabled in tests)
-        self.enable_dbus = enable_dbus
-        self.dbus_queue = queue.Queue()
-        if enable_dbus:
-            self.dbus_service = DBusService(self)
-        else:
-            self.dbus_service = None
-            logger.debug("D-Bus disabled (testing mode)")
-        logger.info("AppController initialized successfully")
 
         # UI references (to be set later)
         self.text_area = None
@@ -127,6 +112,8 @@ class AppController:
         self.translation_model = None
         self.idle_timeout = None
 
+        self.dbus_queue = queue.Queue()
+        self.dbus_service = DBusService(self)
         logger.info("AppController initialized successfully")
 
     def init_variables(self, root):
@@ -284,6 +271,7 @@ class AppController:
             self._update_widget_language(self.deepseek_window.window)
 
     def _update_widget_language(self, widget):
+        """Recursively update text of widgets that have an i18n_key attribute."""
         if hasattr(widget, 'i18n_key') and widget.i18n_key:
             try:
                 new_text = _(widget.i18n_key)
@@ -314,6 +302,7 @@ class AppController:
             self.show_error(_("dialogs.common.error"), str(exception))
 
     def start_recording(self):
+        """Start audio recording."""
         logger.info("Starting recording")
         self.recorder = AudioRecorder(samplerate=config.SAMPLE_RATE, channels=config.CHANNELS)
         self.text_area.delete(1.0, tk.END)
@@ -432,6 +421,12 @@ class AppController:
         self.trans_area.insert(tk.END, text + "\n\n")
         self.trans_area.see(tk.END)
 
+    def clear_translations(self):
+        """Clear the translation area."""
+        if self.trans_area:
+            self.trans_area.delete(1.0, tk.END)
+        logger.debug("Translations cleared")
+
     def correct_transcription(self):
         """Open correction dialog for the transcription area."""
         text = self.text_area.get(1.0, tk.END).strip()
@@ -467,6 +462,7 @@ class AppController:
         )
 
     def save_transcription(self):
+        """Save the current transcription to a file."""
         text = self.text_area.get(1.0, tk.END).strip()
         if not text:
             self.show_info(_("dialogs.common.info"), _("deepseek_window.messages.no_text"))
@@ -608,15 +604,12 @@ class AppController:
                     device = torch.cuda.current_device()
                     total_memory = torch.cuda.get_device_properties(device).total_memory
                     total_gb = round(total_memory / (1024**3), 1)
-                    
                     allocated = torch.cuda.memory_allocated(device)
                     allocated_gb = round(allocated / (1024**3), 1)
-                    
                     if allocated_gb > 0:
                         result_str = f"VRAM: {allocated_gb:.1f}/{total_gb:.1f} GB (PyTorch)"
                     else:
                         result_str = f"VRAM: ?/{total_gb:.1f} GB"
-                    
                     logger.debug(f"torch result: {result_str}")
                     return result_str
                 except Exception as e:
@@ -626,7 +619,7 @@ class AppController:
             logger.debug(f"GPU memory query failed: {e}")
         
         return "VRAM: N/A"
-    
+
     def show_notification(self, title, message):
         """Send a desktop notification using notify-send."""
         try:
@@ -637,25 +630,19 @@ class AppController:
             logger.error(f"Failed to send notification: {e}")
 
     def show_error(self, title, message):
+        """Show an error message box."""
         from tkinter import messagebox
         messagebox.showerror(title, message, parent=self.root)
 
     def show_info(self, title, message):
+        """Show an information message box."""
         from tkinter import messagebox
         messagebox.showinfo(title, message, parent=self.root)
 
     def show_warning(self, title, message):
+        """Show a warning message box."""
         from tkinter import messagebox
         messagebox.showwarning(title, message, parent=self.root)
-
-    def clear_translation_cache(self):
-        """Clear the translation cache."""
-        self.translation_service.clear_cache()
-        self.show_info(_("dialogs.common.info"), _("translation.cache_cleared"))
-
-    def get_translation_cache_stats(self):
-        """Return translation cache statistics."""
-        return self.translation_service.cache_stats()
 
     def quit_app(self):
         """Shutdown the application, save config, and exit."""

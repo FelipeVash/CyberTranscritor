@@ -1,33 +1,19 @@
 # backend/transcriber.py
-"""
-Audio transcription module using Whisper models via Hugging Face Transformers.
-Supports GPU (CUDA/ROCm) with half precision (float16) for performance.
-All logging is done through the centralized logger.
-"""
-
 import torch
 from transformers import pipeline
 import numpy as np
 import sys
 from pathlib import Path
+import warnings
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
 from utils.logger import logger
 
+warnings.filterwarnings("ignore", message=".*does not have many workers.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="transformers")
+
 class TranscriberGPU:
-    """
-    Whisper-based transcriber with GPU support and half precision.
-    Loads the model once and reuses it for multiple transcriptions.
-    """
-
     def __init__(self, model_size=None, device=None):
-        """
-        Initialize the transcriber and load the model.
-
-        Args:
-            model_size: Whisper model size ('tiny', 'base', 'small', 'medium', 'large')
-            device: 'cuda' or 'cpu' (if 'cuda' not available, falls back to cpu)
-        """
         self.model_size = model_size or config.MODEL_SIZE
         if (device or config.DEVICE) == "cuda" and torch.cuda.is_available():
             self.device = 0
@@ -49,25 +35,13 @@ class TranscriberGPU:
         logger.info("Model loaded successfully")
 
     def transcribe(self, audio, language=None):
-        """
-        Transcribe audio (numpy array) to text.
-
-        Args:
-            audio: numpy array of audio samples (expected at 16kHz)
-            language: language code (e.g., 'pt') or None for auto-detection
-
-        Returns:
-            Transcribed text as string.
-        """
         if audio is None or len(audio) == 0:
             logger.error("Empty or invalid audio input")
             return ""
-
         logger.debug(f"Transcribing audio of {len(audio)} samples")
         generate_kwargs = {}
         if language:
             generate_kwargs["language"] = language
-
         try:
             result = self.pipe(audio, generate_kwargs=generate_kwargs)
             text = result['text']
@@ -78,19 +52,24 @@ class TranscriberGPU:
             return f"[Error: {e}]"
 
     def transcribe_file(self, audio_path, language=None):
-        """
-        Transcribe an audio file.
-
-        Args:
-            audio_path: path to audio file
-            language: language code or None
-
-        Returns:
-            Transcribed text.
-        """
         logger.debug(f"Transcribing file: {audio_path}")
         generate_kwargs = {}
         if language:
             generate_kwargs["language"] = language
         result = self.pipe(audio_path, generate_kwargs=generate_kwargs)
         return result['text']
+
+    def unload(self):
+        """Unload the model from GPU to free memory."""
+        logger.info("Unloading Whisper model from GPU")
+        if hasattr(self, 'pipe') and self.pipe is not None:
+            if hasattr(self.pipe, 'model'):
+                try:
+                    self.pipe.model.cpu()
+                except:
+                    pass
+            del self.pipe
+            self.pipe = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.debug("Whisper model unloaded")

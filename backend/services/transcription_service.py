@@ -1,4 +1,3 @@
-# backend/services/transcription_service.py
 """
 Transcription service module.
 Handles audio transcription using the ModelManager.
@@ -32,35 +31,38 @@ class TranscriptionService:
         self.model_manager = model_manager
         logger.debug("TranscriptionService initialized")
 
-    def transcribe(self, audio, language=None, model_size="tiny"):
+    def transcribe(self, audio, language="pt", model_size="tiny"):
         """
-        Transcribe the provided audio.
+        Transcribe audio to text.
 
         Args:
-            audio: numpy array with audio (16kHz, mono)
-            language: language code (e.g., 'pt') or None for auto-detection
-            model_size: Whisper model size ('tiny', 'base', 'small', 'medium', 'large')
+            audio: numpy array of audio samples
+            language: language code
+            model_size: Whisper model size
 
         Returns:
-            String with transcribed text.
+            Transcribed text.
 
         Raises:
             TranscriptionError: if transcription fails
         """
+        if audio is None or len(audio) == 0:
+            logger.error("Empty audio received for transcription")
+            raise TranscriptionError("transcription.error.no_audio")
+
         try:
-            logger.debug(f"Starting transcription (model={model_size}, language={language})")
-            transcriber = self.model_manager.get_transcriber(model_size)
+            logger.debug(f"Getting transcriber for model {model_size}")
+            transcriber = self.model_manager.get_transcriber(model_size=model_size)
             result = transcriber.transcribe(audio, language=language)
 
             # Check if result indicates an error
-            if result.startswith("[Erro:") or result.startswith("❌"):
+            if result.startswith("[Error:") or result.startswith("❌"):
                 logger.error(f"Transcription returned error: {result}")
                 raise TranscriptionError("transcription.error.generic", error=result)
 
-            logger.info("Transcription completed successfully")
+            logger.info(f"Transcription completed with model {model_size}")
             return result
         except TranscriptionError:
-            # Already logged in the specific case above, re-raise
             raise
         except Exception as e:
             error_msg = str(e)

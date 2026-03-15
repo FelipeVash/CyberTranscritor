@@ -280,7 +280,8 @@ class TranscriptionStudio:
 
         # Clear button
         btn_clear_resp = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.clear"),
-                                     style="secondary", command=lambda: self.trans_area.delete(1.0, tk.END))
+                            style="secondary", command=self.controller.clear_translations)
+    
         btn_clear_resp.pack(side=tk.LEFT, padx=6)
         btn_clear_resp.i18n_key = "main_window.controls.buttons.clear"
         ToolTip(btn_clear_resp, text_key="main_window.controls.buttons.clear_tooltip")

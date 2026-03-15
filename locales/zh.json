@@ -118,7 +118,12 @@
       "saving": "💾 保存中...",
       "saved": "✅ 已保存至 {filename}",
       "correcting": "✍️ 纠正中...",
-      "correcting_done": "✅ 纠正完成。"
+      "correcting_done": "✅ 纠正完成。",
+      "precise_transcription_done": "精细化转录完成",
+      "loading_precise_translator": "正在加载精确翻译模型...",
+      "refining_translation": "正在优化翻译...",
+      "precise_translation_done": "精确翻译完成",
+      "translating_fast": "正在使用快速模型翻译..."
     },
     "tooltips": {
       "model": "用于转录的Whisper模型",
@@ -269,7 +274,8 @@
       "app_minimized": "应用已最小化",
       "app_minimized_msg": "程序将继续在后台运行。",
       "language_changed_title": "语言已更改",
-      "language_changed_msg": "重新启动应用以完全应用语言更改。"
+      "language_changed_msg": "重新启动应用以完全应用语言更改。",
+      "precise_translation_ready": "精确翻译已就绪"
     }
   },
   "prompts": {

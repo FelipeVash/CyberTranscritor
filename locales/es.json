@@ -118,7 +118,12 @@
       "saving": "💾 Guardando...",
       "saved": "✅ Guardado en {filename}",
       "correcting": "✍️ Corrigiendo...",
-      "correcting_done": "✅ Corrección completada."
+      "correcting_done": "✅ Corrección completada.",
+      "precise_transcription_done": "Transcripción refinada completada",
+      "loading_precise_translator": "Cargando modelo preciso de traducción...",
+      "refining_translation": "Refinando traducción...",
+      "precise_translation_done": "Traducción refinada completada",
+      "translating_fast": "Traduciendo con modelo rápido..."
     },
     "tooltips": {
       "model": "Modelo Whisper a usar para transcripción",
@@ -269,7 +274,8 @@
       "app_minimized": "Aplicación minimizada",
       "app_minimized_msg": "El programa continúa en segundo plano.",
       "language_changed_title": "Idioma cambiado",
-      "language_changed_msg": "Reinicie la aplicación para aplicar completamente los cambios de idioma."
+      "language_changed_msg": "Reinicie la aplicación para aplicar completamente los cambios de idioma.",
+      "precise_translation_ready": "Traducción refinada lista"
     }
   },
   "prompts": {
