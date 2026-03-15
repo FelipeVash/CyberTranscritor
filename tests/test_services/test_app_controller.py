@@ -1,5 +1,5 @@
 # tests/test_services/test_app_controller.py
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 import pytest
 import tkinter as tk
 from controller.app_controller import AppController
@@ -25,7 +25,7 @@ def mock_controller():
 
         # Mock root with after method
         mock_root = MagicMock()
-        mock_root.after = MagicMock()  # Ensure after is a mock method
+        mock_root.after = MagicMock()
         controller._root = mock_root
 
         # Mock UI references
@@ -57,9 +57,13 @@ def mock_controller():
         controller.show_info = MagicMock()
         controller.start_progress = MagicMock()
         controller.stop_progress = MagicMock()
+        controller.translation_service = MagicMock()
+        controller.translation_service.clear_cache = MagicMock()
+        controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
 
         return controller
 
+# ===== Existing tests =====
 def test_controller_initialization(mock_controller):
     """Test if controller initializes correctly."""
     assert mock_controller is not None
@@ -122,7 +126,6 @@ def test_translate_text(mock_controller):
     mock_controller.current_language.get.return_value = "en"
 
     # Mock translation service
-    mock_controller.translation_service = MagicMock()
     mock_controller.translation_service.translate.return_value = "Olá"
 
     # Mock threading to capture the target function
@@ -158,7 +161,6 @@ def test_translate_all(mock_controller):
     mock_controller.all_languages = ["pt", "en", "es", "fr"]  # Include source to test filtering
 
     # Mock translation service
-    mock_controller.translation_service = MagicMock()
     mock_controller.translation_service.translate.side_effect = ["Olá", "Hola", "Bonjour"]
 
     # Mock threading
@@ -196,7 +198,103 @@ def test_insert_translation(mock_controller):
 
 def test_quit_app(mock_controller):
     """Test the quit_app method."""
-    with patch('sys.exit') as mock_exit:
+    with patch('sys.exit') as mock_exit, \
+         patch('controller.app_controller.save_config') as mock_save:   # <-- adicionado
         mock_controller.quit_app()
         mock_controller.model_manager.unload_all.assert_called_once()
+        mock_save.assert_called_once()                                   # <-- verifica chamada
         mock_exit.assert_called_once_with(0)
+
+# ===== DeepSeek Window tests =====
+def test_open_deepseek_window(mock_controller):
+    """Test opening DeepSeek window when it doesn't exist."""
+    mock_controller.deepseek_window = None
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        mock_window_instance = MagicMock()
+        MockWindow.return_value = mock_window_instance
+
+        mock_controller.open_deepseek_window()
+
+        MockWindow.assert_called_once_with(
+            mock_controller.root,
+            mock_controller,
+            audio_player=mock_controller.audio_player
+        )
+        assert mock_controller.deepseek_window == mock_window_instance
+
+def test_open_deepseek_window_already_exists(mock_controller):
+    """Test opening DeepSeek window when it already exists."""
+    mock_window = MagicMock()
+    mock_window.window.winfo_exists.return_value = True
+    mock_controller.deepseek_window = mock_window
+
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        mock_controller.open_deepseek_window()
+
+        MockWindow.assert_not_called()
+        mock_window.show_window.assert_called_once()
+
+def test_open_deepseek_window_error(mock_controller):
+    """Test error handling when creating DeepSeek window."""
+    mock_controller.deepseek_window = None
+    mock_controller._handle_service_error = MagicMock()
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        MockWindow.side_effect = Exception("Creation failed")
+        mock_controller.open_deepseek_window()
+
+        mock_controller._handle_service_error.assert_called_once()
+        # Verify the error message key is used
+        args, kwargs = mock_controller._handle_service_error.call_args
+        assert args[1] == "deepseek_window.messages.deepseek_error"
+
+def test_open_deepseek_with_context(mock_controller):
+    """Test opening DeepSeek window with initial prompt and response."""
+    mock_controller.deepseek_window = None
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        mock_window_instance = MagicMock()
+        MockWindow.return_value = mock_window_instance
+
+        mock_controller.open_deepseek_with_context("prompt", "response")
+
+        MockWindow.assert_called_once_with(
+            mock_controller.root,
+            mock_controller,
+            initial_prompt="prompt",
+            initial_response="response",
+            audio_player=mock_controller.audio_player
+        )
+
+def test_open_deepseek_with_context_closes_existing(mock_controller):
+    """Test opening with context closes existing window."""
+    existing = MagicMock()
+    existing.window.winfo_exists.return_value = True
+    mock_controller.deepseek_window = existing
+
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        mock_window_instance = MagicMock()
+        MockWindow.return_value = mock_window_instance
+
+        mock_controller.open_deepseek_with_context("prompt", "response")
+
+        existing.destroy.assert_called_once()
+        MockWindow.assert_called_once()
+
+def test_open_deepseek_with_context_error(mock_controller):
+    """Test error handling when opening with context."""
+    mock_controller.deepseek_window = None
+    mock_controller._handle_service_error = MagicMock()
+    with patch('controller.app_controller.DeepSeekWindow') as MockWindow:
+        MockWindow.side_effect = Exception("Context error")
+
+        mock_controller.open_deepseek_with_context("prompt", "response")
+
+        mock_controller._handle_service_error.assert_called_once()
+        # No specific error key, just the exception
+        args, kwargs = mock_controller._handle_service_error.call_args
+        assert isinstance(args[0], Exception)
+
+def test_stop_all_audio(mock_controller):
+    """Test stop_all_audio method."""
+    mock_controller.audio_player.stop = MagicMock()
+    mock_controller.stop_all_audio()
+    mock_controller.audio_player.stop.assert_called_once()

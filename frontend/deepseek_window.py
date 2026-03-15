@@ -1,4 +1,3 @@
-# frontend/deepseek_window.py
 """
 DeepSeek chat window with audio recording and TTS capabilities.
 All logging is done through the centralized logger.
@@ -46,14 +45,18 @@ class DeepSeekWindow:
         else:
             device = "cpu"
 
-        # Initialize TTS engine
+        # Get current TTS voice from controller
+        tts_voice = main_app.tts_voice.get() if main_app and hasattr(main_app, 'tts_voice') else "pt_BR-faber-medium"
+
+        # Initialize TTS engine with the selected voice
         self.tts_engine = None
         try:
             self.tts_engine = PiperTTSEngine(
+                voice=tts_voice,  # Pass the voice here
                 device="cpu",
                 audio_player=self.audio_player
             )
-            logger.info("TTS Engine (Piper) initialized with AudioPlayer")
+            logger.info(f"TTS Engine (Piper) initialized with voice: {tts_voice}")
         except Exception as e:
             logger.error(f"Failed to initialize TTS: {e}")
             traceback.print_exc()

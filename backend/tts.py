@@ -1,4 +1,3 @@
-# backend/tts.py
 """
 Text-to-Speech module using Piper TTS.
 Handles synthesis of text to speech and playback via AudioPlayer.
@@ -22,39 +21,56 @@ class PiperTTSEngine:
     Synthesizes speech and plays it using an external AudioPlayer.
     """
 
-    def __init__(self, device="cpu", model_name="pt_BR-faber-medium", model_path=None, audio_player=None):
+    def __init__(self, device="cpu", voice="pt_BR-faber-medium", model_path=None, audio_player=None):
         """
         Initialize the TTS engine.
 
         Args:
             device: Device to run inference on ('cpu' only for now)
-            model_name: Name of the Piper voice model
-            model_path: Path to the model file (if None, uses default location)
+            voice: Name of the Piper voice model (e.g., 'pt_BR-faber-medium')
+            model_path: Path to the model file (if None, uses default location based on voice)
             audio_player: AudioPlayer instance for playback
         """
         self.device = "cpu"  # Force CPU for compatibility with ROCm
-        self.model_name = model_name
-        self.model_path = model_path
+        self.voice_name = voice
         self.audio_player = audio_player
         self.voice = None
         self.current_temp_file = None
         self.lock = threading.RLock()
 
-        if self.model_path is None:
-            # Default model path (adjust if necessary)
-            self.model_path = Path.home() / ".local/share/piper" / "pt_BR" / "faber" / "medium" / "faber-medium.onnx"
+        if model_path is None:
+            # Construct default model path based on voice name
+            # Expected format: "pt_BR-faber-medium" -> parts: language="pt_BR", name="faber", quality="medium"
+            # Default Piper model directory: ~/.local/share/piper/<language>/<name>/<quality>/<name>-<quality>.onnx
+            parts = voice.split('-')
+            if len(parts) >= 3:
+                language = parts[0] + '_' + parts[1]  # e.g., "pt_BR"
+                name = parts[1] if len(parts) > 1 else "unknown"
+                quality = parts[2] if len(parts) > 2 else "medium"
+                model_path = Path.home() / ".local/share/piper" / language / name / quality / f"{name}-{quality}.onnx"
+            else:
+                # Fallback to a generic path if voice name doesn't match expected format
+                model_path = Path.home() / ".local/share/piper" / voice.replace('-', '_') / "model.onnx"
+                logger.warning(f"Voice name '{voice}' not in expected format, using fallback path: {model_path}")
+        else:
+            model_path = Path(model_path)
+
+        self.model_path = model_path
+        logger.debug(f"TTS engine initialized with voice '{voice}', model path: {self.model_path}")
 
     def load_model(self):
         """Load the Piper voice model if not already loaded."""
         if self.voice is not None:
             return True
         try:
-            logger.info(f"Loading Piper TTS from: {self.model_path}")
             if not self.model_path.exists():
                 logger.error(f"Model file not found: {self.model_path}")
+                logger.error("Please ensure the Piper model is downloaded. "
+                             "See https://github.com/rhasspy/piper for installation instructions.")
                 return False
+            logger.info(f"Loading Piper TTS from: {self.model_path}")
             self.voice = PiperVoice.load(self.model_path, use_cuda=False)
-            logger.info("Piper TTS loaded successfully (CPU)")
+            logger.info(f"Piper TTS loaded successfully with voice '{self.voice_name}'")
             return True
         except Exception as e:
             logger.error(f"Failed to load Piper TTS: {e}")
@@ -74,6 +90,9 @@ class PiperTTSEngine:
             return None
         try:
             audio_chunks = list(self.voice.synthesize(text))
+            if not audio_chunks:
+                logger.error("No audio chunks generated")
+                return None
             audio_bytes = b''.join(chunk.audio_int16_bytes for chunk in audio_chunks)
             sample_rate = audio_chunks[0].sample_rate if audio_chunks else 22050
             sample_width = audio_chunks[0].sample_width if audio_chunks else 2
@@ -103,6 +122,8 @@ class PiperTTSEngine:
             file_path: Path to the WAV file
         """
         with self.lock:
+            # Clean up previous temporary file if exists
+            self._cleanup_temp()
             self.current_temp_file = file_path
             if self.audio_player:
                 logger.debug(f"Playing audio via AudioPlayer: {file_path}")

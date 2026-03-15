@@ -3,13 +3,79 @@ import pytest
 from pathlib import Path
 import tempfile
 import json
+import logging
+import time
+import gc
 from unittest.mock import MagicMock, patch
 
-from utils.logger import setup_logger
-from utils.i18n import I18n
-from utils.config_persistence import load_config, save_config, CONFIG_FILE
+from utils.logger import logger as app_logger
+from utils.config_persistence import CONFIG_FILE
 from controller.app_controller import AppController
 import tkinter as tk
+import sounddevice as sd
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_resources():
+    """
+    Clean up resources after all tests to prevent leaks and SIGSEGV.
+    Attempts to terminate sounddevice, clear CUDA cache, and run garbage collection.
+    """
+    yield
+    # Give threads a moment to finish
+    time.sleep(0.5)
+    # Terminate sounddevice
+    try:
+        sd._terminate()
+    except Exception:
+        pass
+    # Clear CUDA cache if torch is available
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except ImportError:
+        pass
+    # Run garbage collection
+    gc.collect()
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_app_logging():
+    """
+    Add a FileHandler to the application logger to capture all logs
+    during tests into logs/test_output.log.
+    The handler is removed at the end of the session.
+    """
+    root_dir = Path(__file__).parent.parent
+    log_dir = root_dir / "logs"
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "test_output.log"
+
+    logger = app_logger
+
+    # Avoid duplicate handlers
+    if not any(isinstance(h, logging.FileHandler) and h.baseFilename == str(log_file)
+               for h in logger.handlers):
+        file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        # Optional console handler for INFO level
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+        yield
+
+        logger.removeHandler(file_handler)
+        logger.removeHandler(console_handler)
+        file_handler.close()
+        console_handler.close()
+    else:
+        yield
 
 @pytest.fixture(scope="session")
 def temp_config_file():
@@ -22,8 +88,11 @@ def temp_config_file():
 
 @pytest.fixture
 def mock_controller():
-    """Return an AppController with mocks to avoid real service creation."""
-    # Ensure config file doesn't exist to avoid real interactions
+    """
+    Return an AppController with all external services mocked.
+    The controller's Tkinter root is also mocked to avoid GUI creation.
+    """
+    # Remove real config file to prevent side effects
     if CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
 
@@ -31,14 +100,13 @@ def mock_controller():
          patch('controller.app_controller.DeepSeekClient') as MockDeepSeek, \
          patch('controller.app_controller.AudioPlayer'), \
          patch('controller.app_controller.DBusService'):
-        
+
         mock_deepseek = MagicMock()
         MockDeepSeek.return_value = mock_deepseek
+
         controller = AppController()
-        
-        # Prevent controller from trying to create Tkinter variables (root doesn't exist)
-        controller._root = MagicMock()
-        
+        controller._root = MagicMock()  # mock root to avoid Tk
+
         # Mock UI references
         controller.text_area = MagicMock()
         controller.trans_area = MagicMock()
@@ -58,13 +126,17 @@ def mock_controller():
         controller.translation_model = MagicMock()
         controller.idle_timeout = MagicMock()
 
-        # Default return values
+        # Default return values (serializable)
         controller.current_language.get.return_value = "pt"
         controller.model_size.get.return_value = "tiny"
         controller.translate_target.get.return_value = "en"
         controller.tts_voice.get.return_value = "pt_BR-faber-medium"
+        controller.device.get.return_value = "cuda"
+        controller.ui_language.get.return_value = "English (en)"
+        controller.translation_model.get.return_value = "nllb-3.3B"
+        controller.idle_timeout.get.return_value = "60"
 
-        # Mock methods that will be checked in tests
+        # Mock service methods
         controller.show_info = MagicMock()
         controller.start_progress = MagicMock()
         controller.stop_progress = MagicMock()
