@@ -1,4 +1,3 @@
-# frontend/deepseek_window.py
 """
 DeepSeek chat window with audio recording and TTS capabilities.
 All logging is done through the centralized logger.
@@ -46,14 +45,18 @@ class DeepSeekWindow:
         else:
             device = "cpu"
 
-        # Initialize TTS engine
+        # Get current TTS voice from controller
+        tts_voice = main_app.tts_voice.get() if main_app and hasattr(main_app, 'tts_voice') else "pt_BR-faber-medium"
+
+        # Initialize TTS engine with the selected voice
         self.tts_engine = None
         try:
             self.tts_engine = PiperTTSEngine(
+                voice=tts_voice,  # Pass the voice here
                 device="cpu",
                 audio_player=self.audio_player
             )
-            logger.info("TTS Engine (Piper) initialized with AudioPlayer")
+            logger.info(f"TTS Engine (Piper) initialized with voice: {tts_voice}")
         except Exception as e:
             logger.error(f"Failed to initialize TTS: {e}")
             traceback.print_exc()
@@ -110,29 +113,18 @@ class DeepSeekWindow:
             control_frame,
             text=_("deepseek_window.controls.record"),
             style="Pink.TButton",
-            width=20,
+            width=18,
             command=self.toggle_recording
         )
         self.btn_record.pack(side=tk.LEFT, padx=2)
         self.btn_record.i18n_key = "deepseek_window.controls.record"
         ToolTip(self.btn_record, text_key="deepseek_window.controls.record_tooltip")
 
-        self.btn_send = ttk.Button(
-            control_frame,
-            text=_("deepseek_window.controls.send_text"),
-            style="Cyan.TButton",
-            width=15,
-            command=self.send_text
-        )
-        self.btn_send.pack(side=tk.LEFT, padx=2)
-        self.btn_send.i18n_key = "deepseek_window.controls.send_text"
-        ToolTip(self.btn_send, text_key="deepseek_window.controls.send_tooltip")
-
         self.btn_stop_audio = ttk.Button(
             control_frame,
             text=_("deepseek_window.controls.stop_audio"),
             style="secondary",
-            width=15,
+            width=18,
             command=self.stop_audio
         )
         self.btn_stop_audio.pack(side=tk.LEFT, padx=2)
@@ -144,7 +136,7 @@ class DeepSeekWindow:
                 control_frame,
                 text=_("deepseek_window.controls.listen"),
                 style="Cyan.TButton",
-                width=15,
+                width=18,
                 command=self.play_last_response
             )
             self.btn_tts.pack(side=tk.LEFT, padx=2)
@@ -155,7 +147,7 @@ class DeepSeekWindow:
                 control_frame,
                 text=_("deepseek_window.controls.tts_unavailable"),
                 style="secondary",
-                width=15,
+                width=18,
                 state="disabled"
             )
             self.btn_tts.pack(side=tk.LEFT, padx=2)

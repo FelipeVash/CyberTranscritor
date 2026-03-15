@@ -502,8 +502,7 @@ class AppController:
                 self.deepseek_window = DeepSeekWindow(
                     self.root,
                     self,
-                    audio_player=self.audio_player,
-                    tts_voice=self.tts_voice.get() if self.tts_voice else "pt_BR-faber-medium"
+                    audio_player=self.audio_player
                 )
             except Exception as e:
                 self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
@@ -520,8 +519,7 @@ class AppController:
                 self,
                 initial_prompt=prompt,
                 initial_response=response,
-                audio_player=self.audio_player,
-                tts_voice=self.tts_voice.get() if self.tts_voice else "pt_BR-faber-medium"
+                audio_player=self.audio_player
             )
         except Exception as e:
             self._handle_service_error(e)
@@ -643,6 +641,15 @@ class AppController:
         """Show a warning message box."""
         from tkinter import messagebox
         messagebox.showwarning(title, message, parent=self.root)
+    
+    def clear_translation_cache(self):
+        """Clear the translation cache via the translation service."""
+        self.translation_service.clear_cache()
+        self.show_info(_("dialogs.common.info"), _("translation.cache_cleared"))
+
+    def get_translation_cache_stats(self):
+        """Return cache statistics from the translation service."""
+        return self.translation_service.cache_stats()
 
     def quit_app(self):
         """Shutdown the application, save config, and exit."""

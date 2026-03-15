@@ -1,7 +1,7 @@
 {
   "meta": {
-    "language": "zh",
-    "language_name": "中文"
+    "language": "zh-CN",
+    "language_name": "中文 (简体)"
   },
   "main_window": {
     "title": "赛博朋克转录工作室",
@@ -29,7 +29,7 @@
       }
     },
     "controls": {
-      "frame_title": "⚡ 控制",
+      "frame_title": "⚡ 控制面板",
       "model": "模型:",
       "device": "设备:",
       "source_language": "源语言:",
@@ -37,17 +37,17 @@
       "buttons": {
         "record": "▶ 录制",
         "stop_record": "⏹ 停止录制",
-        "record_tooltip": "开始/停止录音 (Super+1)",
+        "record_tooltip": "开始/停止录制 (Super+1)",
         "translate": "🌐 翻译",
-        "translate_tooltip": "将转录翻译成所选语言 (Super+2)",
+        "translate_tooltip": "将转录翻译为选定语言 (Super+2)",
         "multitranslate": "🌍 多语言翻译",
-        "multitranslate_tooltip": "将转录翻译成所有语言",
+        "multitranslate_tooltip": "将转录翻译为所有语言",
         "save": "💾 保存",
-        "save_tooltip": "保存当前转录到文件 (Super+3)",
+        "save_tooltip": "将当前转录保存到文件 (Super+3)",
         "deepseek": "🤖 DeepSeek",
         "deepseek_tooltip": "打开/恢复DeepSeek查询窗口 (Super+5)",
         "correct": "✍️ 纠正",
-        "correct_tooltip": "纠正转录语法 (Super+4)",
+        "correct_tooltip": "纠正转录的语法 (Super+4)",
         "clear": "🗑️ 清除",
         "clear_tooltip": "清除转录区域",
         "save_translations": "💾 保存翻译",
@@ -64,33 +64,33 @@
       "strike": "删",
       "strike_tooltip": "删除线",
       "font_size": "字号 ▼",
-      "font_size_tooltip": "更改字体大小（整个文本）",
+      "font_size_tooltip": "更改字号（全文）",
       "color": "🎨",
       "color_tooltip": "为所选文本应用颜色",
-      "heading": "H",
+      "heading": "标",
       "heading_tooltip": "应用标题样式",
       "datetime": "🕒",
       "datetime_tooltip": "插入当前日期和时间",
       "align_left": "⬅",
-      "align_left_tooltip": "左对齐段落",
+      "align_left_tooltip": "左对齐",
       "align_center": "⏺",
-      "align_center_tooltip": "居中对齐段落",
+      "align_center_tooltip": "居中对齐",
       "align_right": "➡",
-      "align_right_tooltip": "右对齐段落",
+      "align_right_tooltip": "右对齐",
       "align_justify": "↔",
-      "align_justify_tooltip": "两端对齐段落",
+      "align_justify_tooltip": "两端对齐",
       "indent_increase": "⇢",
-      "indent_increase_tooltip": "增加缩进（添加4个空格）",
+      "indent_increase_tooltip": "增加缩进（加4个空格）",
       "indent_decrease": "⇠",
-      "indent_decrease_tooltip": "减少缩进（删除4个空格）",
+      "indent_decrease_tooltip": "减少缩进（减4个空格）",
       "numbered_list": "1.",
-      "numbered_list_tooltip": "插入/继续编号列表 (Enter 递增)",
+      "numbered_list_tooltip": "插入/继续编号列表（Enter键递增）",
       "bullet_list": "•",
-      "bullet_list_tooltip": "在当前行插入/删除项目符号",
+      "bullet_list_tooltip": "在当前行插入/移除项目符号",
       "table": "⧠",
       "table_tooltip": "插入简单3x2表格",
       "export_html": "HTML",
-      "export_html_tooltip": "导出内容为HTML（纯文本）",
+      "export_html_tooltip": "导出为HTML（纯文本）",
       "import_html": "导入",
       "import_html_tooltip": "从HTML文件导入（提取纯文本）"
     },
@@ -99,10 +99,10 @@
       "translations": "🌐 翻译"
     },
     "indicators": {
-      "recording": "🔴 录音中...",
+      "recording": "🔴 录制中...",
       "stopped": "⏹ 已停止",
       "processing": "⏳ 处理中...",
-      "ready": "✅ 就绪",
+      "ready": "✅ 就绪。",
       "error": "❌ 错误",
       "warning": "⚠️ 警告"
     },
@@ -111,95 +111,95 @@
       "no_microphone": "❌ 未找到音频输入设备。",
       "loading_model": "⏳ 正在加载模型 {model}...",
       "model_loaded": "✅ 模型 {model} 已加载。",
-      "transcribing": "⏳ 转录中...",
+      "transcribing": "⏳ 正在转录...",
       "transcribing_done": "✅ 转录完成。",
-      "translating": "⏳ 翻译中...",
+      "translating": "⏳ 正在翻译...",
       "translating_done": "✅ 翻译完成。",
-      "saving": "💾 保存中...",
+      "saving": "💾 正在保存...",
       "saved": "✅ 已保存至 {filename}",
-      "correcting": "✍️ 纠正中...",
+      "correcting": "✍️ 正在纠正...",
       "correcting_done": "✅ 纠正完成。",
       "precise_transcription_done": "精细化转录完成",
-      "loading_precise_translator": "正在加载精确翻译模型...",
-      "refining_translation": "正在优化翻译...",
-      "precise_translation_done": "精确翻译完成",
+      "loading_precise_translator": "正在加载精细翻译模型...",
+      "refining_translation": "正在精细化翻译...",
+      "precise_translation_done": "精细化翻译完成",
       "translating_fast": "正在使用快速模型翻译..."
     },
     "tooltips": {
       "model": "用于转录的Whisper模型",
-      "device": "推理设备 (推荐GPU)",
-      "source_language": "音频语言 (用于转录)",
+      "device": "推理设备（推荐GPU）",
+      "source_language": "音频语言（用于转录）",
       "target_language": "目标翻译语言",
-      "rec_indicator": "录音状态",
+      "rec_indicator": "录制状态",
       "status_bar": "状态栏"
     }
   },
   "settings_window": {
     "title": "设置",
     "labels": {
-        "ui_language": "界面语言:",
-        "whisper_model": "Whisper模型:",
-        "device": "设备:",
-        "tts_voice": "TTS语音:",
-        "translation_model": "翻译模型:",
-        "idle_timeout": "空闲超时 (秒):",
-        "translation_cache": "翻译缓存"
+      "ui_language": "界面语言:",
+      "whisper_model": "Whisper模型:",
+      "device": "设备:",
+      "tts_voice": "语音合成音色:",
+      "translation_model": "翻译模型:",
+      "idle_timeout": "空闲超时（秒）:",
+      "translation_cache": "翻译缓存"
     },
     "tooltips": {
-        "ui_language": "选择界面语言",
-        "whisper_model": "转录模型 (越大越精确，但速度越慢)",
-        "device": "推理设备 (推荐GPU)",
-        "tts_voice": "选择语音合成的声音",
-        "translation_model": "翻译模型 (越大越精确，但速度越慢)",
-        "idle_timeout": "无操作多长时间后从GPU卸载模型",
-        "clear_cache": "删除所有缓存的翻译"
+      "ui_language": "选择界面语言",
+      "whisper_model": "转录模型（越大越准确，但速度越慢）",
+      "device": "推理设备（推荐GPU）",
+      "tts_voice": "选择语音合成音色",
+      "translation_model": "翻译模型（越大越准确，但速度越慢）",
+      "idle_timeout": "卸载GPU模型前的空闲时间",
+      "clear_cache": "删除所有缓存的翻译"
     },
     "buttons": {
-        "ok": "确定",
-        "apply": "应用",
-        "cancel": "取消",
-        "clear_cache": "清除缓存",
-        "refresh_stats": "刷新统计"
+      "ok": "确定",
+      "apply": "应用",
+      "cancel": "取消",
+      "clear_cache": "清除缓存",
+      "refresh_stats": "刷新统计"
     },
     "cache_stats": "大小: {size}/{max_size} | 命中: {hits} | 未命中: {misses}",
-    "cache_stats_unavailable": "统计不可用"
+    "cache_stats_unavailable": "统计数据不可用"
   },
   "deepseek_window": {
     "title": "🤖 DeepSeek - 语音查询",
     "options_frame": "⚙️ 查询选项",
     "controls": {
-      "record": "▶ 开始录音",
+      "record": "▶ 录制",
       "stop_record": "⏹ 停止并发送",
       "record_tooltip": "开始录音 (Ctrl+R)",
-      "send_text": "📤 发送文本",
+      "send_text": "📤 发送",
       "send_tooltip": "发送输入的文本 (Enter)",
       "stop_audio": "⏹ 停止音频",
-      "stop_audio_tooltip": "停止音频播放",
-      "listen": "🔊 听取回复",
-      "listen_tooltip": "听取最后一条回复 (TTS)",
-      "tts_unavailable": "🔊 TTS不可用"
+      "stop_audio_tooltip": "停止当前播放的音频",
+      "listen": "🔊 收听回复",
+      "listen_tooltip": "收听最后一次回复 (TTS)",
+      "tts_unavailable": "🔊 TTS 不可用"
     },
     "options": {
-      "thinking": "深度思考 (详细推理)",
+      "thinking": "深度思考（详细推理）",
       "thinking_tooltip": "启用深度推理模式",
-      "web_search": "互联网搜索",
-      "web_search_tooltip": "允许实时搜索 (通过DuckDuckGo)",
+      "web_search": "联网搜索",
+      "web_search_tooltip": "允许获取最新信息（通过DuckDuckGo）",
       "correction": "纠正转录文本",
       "correction_tooltip": "发送前自动纠正转录"
     },
     "labels": {
-      "history": "📜 历史记录",
-      "input": "✏️ 输入 (输入或使用音频)",
+      "history": "📜 历史",
+      "input": "✏️ 输入（输入文本或使用语音）",
       "status_idle": "⏹ 空闲",
       "status_recording": "🔴 录音中...",
       "status_transcribing": "⏳ 转录中...",
-      "status_consulting": "⏳ 咨询DeepSeek...",
-      "status_response": "✅ 收到回复",
+      "status_consulting": "⏳ 正在咨询DeepSeek...",
+      "status_response": "✅ 已收到回复",
       "status_preloaded": "✅ 预加载回复",
       "hint": "Enter: 发送 | Shift+Enter: 换行 | Ctrl+R: 录音 | Esc: 关闭"
     },
     "messages": {
-      "no_audio": "没有录制到音频。",
+      "no_audio": "未录制到音频。",
       "no_text": "没有可发送的内容。",
       "no_response": "没有可用的回复。",
       "tts_error": "TTS不可用。",
@@ -216,12 +216,15 @@
       "title": "转录纠正",
       "title_response": "回复纠正",
       "original": "原文",
-      "corrected": "纠正后文本",
+      "corrected": "纠正后",
       "apply": "应用",
       "cancel": "取消",
       "close": "关闭",
-      "correcting": "纠正中...",
-      "error": "纠正错误: {error}"
+      "correcting": "正在纠正...",
+      "error": "纠正错误: {error}",
+      "cache_stats": {
+        "title": "翻译缓存统计"
+      }
     },
     "common": {
       "error": "错误",
@@ -237,18 +240,15 @@
     "about": {
       "title": "关于赛博朋克转录工作室",
       "version": "版本 1.0.0",
-      "description": "一个注重隐私的转录应用程序，本地运行模型。",
-      "license": "使用MIT许可证"
+      "description": "一个注重隐私的转录应用，本地运行模型。",
+      "license": "MIT 许可证"
     },
     "close_dialog": {
       "title": "退出还是最小化？",
-      "message": "您是要退出应用程序还是将其最小化到系统托盘？",
-      "minimize": "最小化到托盘",
+      "message": "您真的要退出应用还是将其最小化到系统托盘？",
+      "minimize": "最小化",
       "exit": "退出",
       "cancel": "取消"
-    },
-    "cache_stats": {
-      "title": "翻译缓存统计"
     }
   },
   "tray": {
@@ -258,32 +258,32 @@
       "quit": "退出"
     },
     "notifications": {
-      "recording_started": "🎤 录音已开始",
-      "recording_stopped": "⏹️ 录音已停止",
-      "transcription_ready": "转录准备就绪",
+      "recording_started": "🎤 开始录音",
+      "recording_stopped": "⏹️ 停止录音",
+      "transcription_ready": "转录已完成",
       "transcription_saved": "转录已保存: {filename}",
       "background_start_title": "🎤 后台录音",
-      "background_start": "现在说话。再次按 Super+0 停止。",
+      "background_start": "现在说话。再次按Super+0停止。",
       "background_timeout_title": "⏹️ 超时",
-      "background_timeout": "静音超时。",
-      "background_no_audio_title": "⚠️ 无音频",
+      "background_timeout": "已达到静音超时。",
+      "background_no_audio_title": "⚠️ 未录到音频",
       "background_no_audio": "未检测到音频。",
       "background_processing_title": "⏳ 处理中",
-      "background_processing": "正在转录和查询DeepSeek...",
+      "background_processing": "正在转录并咨询DeepSeek...",
       "deepseek_response_title": "🤖 DeepSeek 回复",
       "app_minimized": "应用已最小化",
-      "app_minimized_msg": "程序将继续在后台运行。",
+      "app_minimized_msg": "程序仍在后台运行。",
       "language_changed_title": "语言已更改",
-      "language_changed_msg": "重新启动应用以完全应用语言更改。",
-      "precise_translation_ready": "精确翻译已就绪"
+      "language_changed_msg": "重启应用以完全应用语言更改。",
+      "precise_translation_ready": "精细化翻译已就绪"
     }
   },
   "prompts": {
     "deepseek_system": "你是一个有用且简洁的助手。",
     "deepseek_user": "{text}",
-    "deepseek_user_with_web": "用户查询: {text}\n\n互联网搜索结果 (当前):\n{web_results}\n\n基于以上信息，完整且最新地回答用户的查询。",
-    "correction": "纠正以下文本的语法，保持原意:\n\n{text}",
-    "translation": "将以下片段从 {source_lang} 翻译成 {target_lang}，无需额外解释:\n\n{text}",
+    "deepseek_user_with_web": "用户查询：{text}\n\n互联网搜索结果（当前）：\n{web_results}\n\n基于以上信息，完整且更新地回答用户的查询。",
+    "correction": "纠正以下文本的语法错误，保持原意不变，语言为{language}：\n\n{text}",
+    "translation": "将以下片段从{source_lang}翻译成{target_lang}，无需额外解释。\n\n{text}",
     "thinking_prefix": "让我们一步步思考。"
   },
   "common": {
@@ -294,10 +294,10 @@
       "error": "音频错误"
     },
     "time": {
-      "just_now": "刚才",
-      "seconds_ago": "{seconds} 秒前",
-      "minutes_ago": "{minutes} 分钟前",
-      "hours_ago": "{hours} 小时前"
+      "just_now": "刚刚",
+      "seconds_ago": "{seconds}秒前",
+      "minutes_ago": "{minutes}分钟前",
+      "hours_ago": "{hours}小时前"
     },
     "placeholders": {
       "type_here": "在此输入..."
@@ -331,6 +331,6 @@
     "correction": "语法纠正错误: {error}"
   },
   "translation": {
-      "cache_cleared": "翻译缓存已成功清除。"
+    "cache_cleared": "翻译缓存已成功清除。"
   }
 }

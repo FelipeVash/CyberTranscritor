@@ -35,6 +35,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements-base.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
       - name: Set PYTHONPATH for system packages
         run: echo "PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH" >> $GITHUB_ENV
