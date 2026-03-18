@@ -1,121 +1,135 @@
+# ======================================================================
+# ARQUIVO: frontend/meeting_window.py
+# ======================================================================
 """
-Meeting recording window (independent application).
-Allows user to select audio sink, record, and later process minutes.
+Meeting window for recording and processing meetings.
+Independent from main application.
+All logging is done through the centralized logger.
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext
-import ttkbootstrap as tb
-from ttkbootstrap.constants import *
+from tkinter import ttk, messagebox
 from utils.i18n import _
-from utils.tooltip import ToolTip
 from utils.logger import logger
+from controller.meeting_controller import MeetingController
 
 class MeetingWindow:
     """
-    Window for meeting recording and minutes generation.
-    Independent of main application.
+    Standalone window for meeting recording and processing.
     """
 
-    def __init__(self, controller):
-        self.controller = controller
-        self.root = tb.Window(themename="darkly")
-        self.root.title("🎤 Gravação de Reuniões")
-        self.root.geometry("800x600")
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("🎤 Meeting Recorder")
+        self.root.geometry("700x600")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Connect controller callbacks
-        self.controller.on_status_update = self.update_status
+        self.controller = MeetingController(self)
+
+        self.selected_sink = tk.StringVar()
+        self.status_var = tk.StringVar(value="Pronto")
+        self.speaker_var = tk.StringVar(value="Ninguém falando")
 
         self.setup_ui()
         self.refresh_sinks()
 
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        logger.info("Meeting window initialized")
 
     def setup_ui(self):
-        """Create and arrange widgets."""
+        """Create UI elements."""
         main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.pack(fill=BOTH, expand=True)
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Sink selection
-        sink_frame = ttk.LabelFrame(main_frame, text="Dispositivo de Áudio (Sink)", padding=5)
-        sink_frame.pack(fill=X, pady=5)
+        sink_frame = ttk.LabelFrame(main_frame, text="Fonte de Áudio")
+        sink_frame.pack(fill=tk.X, pady=5)
 
-        self.sink_var = tk.StringVar()
-        self.sink_combo = ttk.Combobox(sink_frame, textvariable=self.sink_var,
-                                        state="readonly", width=50)
-        self.sink_combo.pack(side=LEFT, padx=5)
+        sink_combo = ttk.Combobox(sink_frame, textvariable=self.selected_sink, state="readonly")
+        sink_combo.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.X, expand=True)
+        self.sink_combo = sink_combo
 
-        btn_refresh = ttk.Button(sink_frame, text="↻", width=3, command=self.refresh_sinks)
-        btn_refresh.pack(side=LEFT, padx=2)
+        refresh_btn = ttk.Button(sink_frame, text="↻", width=3, command=self.refresh_sinks)
+        refresh_btn.pack(side=tk.RIGHT, padx=5)
 
         # Control buttons
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=X, pady=10)
+        control_frame = ttk.Frame(main_frame)
+        control_frame.pack(fill=tk.X, pady=10)
 
-        self.btn_record = ttk.Button(btn_frame, text="⏺ Iniciar Gravação",
-                                      style="success.TButton", width=20,
-                                      command=self.toggle_recording)
-        self.btn_record.pack(side=LEFT, padx=5)
+        self.start_btn = ttk.Button(control_frame, text="▶ Iniciar Gravação",
+                                     command=self.start_recording, width=20)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
 
-        self.btn_process = ttk.Button(btn_frame, text="⚙️ Processar (futuro)",
-                                      style="info.TButton", width=20,
-                                      command=self.process_recording)
-        self.btn_process.pack(side=LEFT, padx=5)
+        self.stop_btn = ttk.Button(control_frame, text="⏹ Parar Gravação",
+                                    command=self.stop_recording, width=20, state=tk.DISABLED)
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
+
+        # Current speaker label
+        speaker_frame = ttk.LabelFrame(main_frame, text="Falante Atual")
+        speaker_frame.pack(fill=tk.X, pady=5)
+        speaker_label = ttk.Label(speaker_frame, textvariable=self.speaker_var,
+                                   font=("Arial", 14), foreground="blue")
+        speaker_label.pack(pady=10)
 
         # Status bar
-        self.status_var = tk.StringVar(value="Pronto")
-        status_label = ttk.Label(main_frame, textvariable=self.status_var,
-                                  relief=SUNKEN, anchor=W)
-        status_label.pack(fill=X, pady=5)
+        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN)
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Log area (for future real-time updates)
-        log_frame = ttk.LabelFrame(main_frame, text="Log", padding=5)
-        log_frame.pack(fill=BOTH, expand=True, pady=5)
-
-        self.log_area = scrolledtext.ScrolledText(log_frame, wrap=WORD,
-                                                   font=("Consolas", 10),
-                                                   bg="#1e1e1e", fg="#d4d4d4")
-        self.log_area.pack(fill=BOTH, expand=True)
+        # Transcript area (placeholder for later)
+        transcript_frame = ttk.LabelFrame(main_frame, text="Transcrição")
+        transcript_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.transcript_text = tk.Text(transcript_frame, wrap=tk.WORD, state=tk.DISABLED)
+        self.transcript_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
     def refresh_sinks(self):
-        """Update the sink combobox with current list."""
-        sinks = self.controller.get_sinks()
+        """Refresh list of audio sinks."""
+        sinks = self.controller.list_sinks()
         self.sink_combo['values'] = sinks
         if sinks:
-            self.sink_combo.current(0)
-        self.log("Sinks atualizados")
+            self.selected_sink.set(sinks[0])
 
-    def toggle_recording(self):
-        """Start or stop recording."""
-        if not self.controller.is_recording:
-            sink = self.sink_var.get()
-            if not sink:
-                self.log("Selecione um sink de áudio", error=True)
-                return
-            self.controller.start_recording(sink)
-            self.btn_record.config(text="⏹ Parar Gravação", style="danger.TButton")
+    def start_recording(self):
+        """Start recording."""
+        sink = self.selected_sink.get()
+        if not sink:
+            messagebox.showerror("Erro", "Selecione uma fonte de áudio.")
+            return
+        self.start_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
+        self.status_var.set("Gravando...")
+        self.speaker_var.set("Aguardando...")
+        self.controller.start_recording(sink)
+
+    def stop_recording(self):
+        """Stop recording and start processing."""
+        self.stop_btn.config(state=tk.DISABLED)
+        self.status_var.set("Parando...")
+        self.controller.stop_recording()
+
+    def update_current_speaker(self, speaker):
+        """Update UI with current speaker (called from controller thread)."""
+        self.speaker_var.set(f"Falante: {speaker}")
+
+    def show_processing(self, processing):
+        """Show/hide processing indicator."""
+        if processing:
+            self.status_var.set("Processando áudio...")
         else:
-            self.controller.stop_recording()
-            self.btn_record.config(text="⏺ Iniciar Gravação", style="success.TButton")
+            self.status_var.set("Pronto")
 
-    def process_recording(self):
-        """Placeholder for future processing pipeline."""
-        self.log("Processamento não implementado ainda.")
+    def display_transcript(self, text):
+        """Display transcript (placeholder for now)."""
+        self.transcript_text.config(state=tk.NORMAL)
+        self.transcript_text.delete(1.0, tk.END)
+        self.transcript_text.insert(tk.END, text)
+        self.transcript_text.config(state=tk.DISABLED)
 
-    def update_status(self, message):
-        """Update status bar from controller."""
-        self.status_var.set(message)
+    def show_error(self, title, message):
+        """Display error message box."""
+        messagebox.showerror(title, message, parent=self.root)
 
-    def log(self, message, error=False):
-        """Add message to log area."""
-        self.log_area.insert(tk.END, message + "\n")
-        self.log_area.see(tk.END)
-
-    def on_closing(self):
-        """Clean up and close."""
-        if self.controller.is_recording:
-            self.controller.stop_recording()
-        self.controller.cleanup()
+    def on_close(self):
+        """Handle window close."""
+        self.controller.stop_recording()
         self.root.destroy()
 
     def run(self):

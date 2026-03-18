@@ -1,33 +1,52 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
+# Ambientes virtuais
+venv_transcritor/
+venv_meeting/
 .venv/
-*.egg-info/
-dist/
-build/
+env/
 
-# Logs e transcrições
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
 logs/
-transcricoes/
-test_audio/
+*.log
+
+# Arquivos de banco de dados SQLite (se houver)
+*.db
+*.sqlite3
+
+# Arquivos de áudio e transcrições (caso não queira versionar)
+transcriptions/
+*.wav
+*.mp3
 
 # Configurações locais
-.transcritor_config.json
-.deepseek_config.json
+config.json
+*.conf
 
-# IDE
-.vscode/
-.idea/
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Sistema
-*.swp
-*.swo
-*~
-.DS_Store
-frontend/__pycache__/main_window.cpython-312.pyc
-backend/__pycache__/translator.cpython-312.pyc
+# Ferramentas de build
+dist/
+build/
+*.egg-info/
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ambientes virtuais e backups
+venv_*
+*.tar.gz
+
+# Outros
+yay/
+=4.0.3
+python_version.txt   # se não quiser versionar, senão mantenha
