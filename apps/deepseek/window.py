@@ -20,6 +20,7 @@ from core.utils.tooltip import ToolTip
 from core.utils.i18n import _
 from core.utils.logger import logger
 from core import config
+from core.frontend.styles import configure_styles
 
 from .controller import DeepSeekController
 
@@ -64,17 +65,16 @@ class DeepSeekWindow:
             )
     
     def setup_ui(self):
-        """Create and arrange all UI widgets."""
         logger.debug("Building DeepSeekWindow UI")
-
-        # Create the window with ttkbootstrap
         if self.parent:
             self.window = tb.Toplevel(self.parent)
-            style = tb.Style.get_instance()
-            configure_styles(style)
         else:
             self.window = tb.Window(themename="darkly")
             self.window.protocol("WM_DELETE_WINDOW", self.destroy)
+
+        # Aplica os estilos customizados
+        style = tb.Style.get_instance()
+        configure_styles(style)
 
         self.window.title(_("deepseek_window.title"))
         self.window.geometry("900x1100")
