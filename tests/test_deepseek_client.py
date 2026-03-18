@@ -7,13 +7,13 @@ import pytest
 import requests
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-from backend.deepseek_client import DeepSeekClient, CONFIG_PATH
+from core.backend.deepseek_client import DeepSeekClient, CONFIG_PATH
 
 @pytest.fixture
 def mock_config_path(tmp_path, monkeypatch):
     """Set CONFIG_PATH to a temporary location."""
     fake_path = tmp_path / ".deepseek_config.json"
-    monkeypatch.setattr('backend.deepseek_client.CONFIG_PATH', fake_path)
+    monkeypatch.setattr('core.backend.deepseek_client.CONFIG_PATH', fake_path)
     return fake_path
 
 def test_load_key_from_existing_file(mock_config_path):

@@ -38,9 +38,9 @@ sys.modules['piper_tts'] = mock_piper
 # ============================================================================
 # Now import application modules (safe after mocks)
 # ============================================================================
-from utils.logger import logger as app_logger
-from utils.config_persistence import CONFIG_FILE
-from controller.app_controller import AppController
+from core.utils.logger import logger as app_logger
+from core.utils.config_persistence import CONFIG_FILE
+from core.controller.app_controller import AppController
 import tkinter as tk
 
 # ============================================================================
@@ -114,53 +114,53 @@ def mock_controller():
     if CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
 
-    with patch('controller.app_controller.ModelManager'), \
-         patch('controller.app_controller.DeepSeekClient') as MockDeepSeek, \
-         patch('controller.app_controller.AudioPlayer'), \
-         patch('controller.app_controller.DBusService'):
+    with patch('core.controller.app_controller.ModelManager'), \
+         patch('core.controller.app_controller.DeepSeekClient') as MockDeepSeek, \
+         patch('core.controller.app_controller.AudioPlayer'), \
+         patch('core.controller.app_controller.DBusService'):
 
         mock_deepseek = MagicMock()
         MockDeepSeek.return_value = mock_deepseek
 
         controller = AppController()
-        controller._root = MagicMock()  # mock root to avoid Tk
+        core.controller._root = MagicMock()  # mock root to avoid Tk
 
         # Mock UI references
-        controller.text_area = MagicMock()
-        controller.trans_area = MagicMock()
-        controller.btn_record = MagicMock()
-        controller.btn_deepseek = MagicMock()
-        controller.rec_indicator = MagicMock()
-        controller.status_var = MagicMock()
-        controller.progress_bar = MagicMock()
+        core.controller.text_area = MagicMock()
+        core.controller.trans_area = MagicMock()
+        core.controller.btn_record = MagicMock()
+        core.controller.btn_deepseek = MagicMock()
+        core.controller.rec_indicator = MagicMock()
+        core.controller.status_var = MagicMock()
+        core.controller.progress_bar = MagicMock()
 
         # Mock Tkinter variables
-        controller.model_size = MagicMock()
-        controller.device = MagicMock()
-        controller.current_language = MagicMock()
-        controller.translate_target = MagicMock()
-        controller.ui_language = MagicMock()
-        controller.tts_voice = MagicMock()
-        controller.translation_model = MagicMock()
-        controller.idle_timeout = MagicMock()
+        core.controller.model_size = MagicMock()
+        core.controller.device = MagicMock()
+        core.controller.current_language = MagicMock()
+        core.controller.translate_target = MagicMock()
+        core.controller.ui_language = MagicMock()
+        core.controller.tts_voice = MagicMock()
+        core.controller.translation_model = MagicMock()
+        core.controller.idle_timeout = MagicMock()
 
         # Default return values (serializable)
-        controller.current_language.get.return_value = "pt"
-        controller.model_size.get.return_value = "tiny"
-        controller.translate_target.get.return_value = "en"
-        controller.tts_voice.get.return_value = "pt_BR-faber-medium"
-        controller.device.get.return_value = "cuda"
-        controller.ui_language.get.return_value = "English (en)"
-        controller.translation_model.get.return_value = "nllb-3.3B"
-        controller.idle_timeout.get.return_value = "60"
+        core.controller.current_language.get.return_value = "pt"
+        core.controller.model_size.get.return_value = "tiny"
+        core.controller.translate_target.get.return_value = "en"
+        core.controller.tts_voice.get.return_value = "pt_BR-faber-medium"
+        core.controller.device.get.return_value = "cuda"
+        core.controller.ui_language.get.return_value = "English (en)"
+        core.controller.translation_model.get.return_value = "nllb-3.3B"
+        core.controller.idle_timeout.get.return_value = "60"
 
         # Mock service methods
-        controller.show_info = MagicMock()
-        controller.start_progress = MagicMock()
-        controller.stop_progress = MagicMock()
-        controller.translation_service = MagicMock()
-        controller.translation_service.clear_cache = MagicMock()
-        controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
+        core.controller.show_info = MagicMock()
+        core.controller.start_progress = MagicMock()
+        core.controller.stop_progress = MagicMock()
+        core.controller.translation_service = MagicMock()
+        core.controller.translation_service.clear_cache = MagicMock()
+        core.controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
 
         return controller
 

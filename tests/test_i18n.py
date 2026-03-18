@@ -1,6 +1,6 @@
 # tests/test_i18n.py
 import pytest
-from utils.i18n import I18n, _, get_language_display
+from core.utils.i18n import I18n, _, get_language_display
 from pathlib import Path
 
 @pytest.fixture
@@ -77,8 +77,8 @@ def test_get_language_display(i18n_instance):
 def test_global_function(i18n_instance):
     """Test the global _() function."""
     # Replace global instance temporarily
-    import utils.i18n
-    utils.i18n._i18n = i18n_instance
+    import core.utils.i18n
+    core.utils.i18n._i18n = i18n_instance
     
     i18n_instance.load_language("pt-br")
     assert _("test") == "Olá"
@@ -86,6 +86,6 @@ def test_global_function(i18n_instance):
     assert _("unknown") == "unknown"
     
     # Test global get_language_display
-    utils.i18n._i18n = i18n_instance
+    core.utils.i18n._i18n = i18n_instance
     i18n_instance.load_language("pt-br")
     assert get_language_display("pt-br") == "Português (pt-br)"

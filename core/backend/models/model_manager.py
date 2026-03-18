@@ -1,0 +1,236 @@
+# ======================================================================
+# ARQUIVO: backend/models/model_manager.py
+# ======================================================================
+"""
+Model lifecycle manager.
+Handles loading, caching, and automatic unloading of AI models (transcriber, translator, segmentation).
+All logging is done through the centralized logger.
+"""
+
+import torch
+import threading
+import time
+import os
+from huggingface_hub import login
+from torch.serialization import add_safe_globals
+from torch.torch_version import TorchVersion
+from core.backend.transcriber import TranscriberGPU
+from core.backend.translator import Translator
+from core.utils.logger import logger
+
+# Adiciona TorchVersion à lista de globals seguros globalmente
+add_safe_globals([TorchVersion])
+
+class ModelManager:
+    """
+    Manages model instances (transcriber, translator, segmentation).
+    Maintains a single instance per model type and unloads after inactivity.
+    """
+
+    def __init__(self, device="cuda", idle_timeout=60):
+        """
+        Initialize the model manager.
+
+        Args:
+            device: Inference device ('cuda' or 'cpu')
+            idle_timeout: Seconds of inactivity before unloading models
+        """
+        self.device = device if torch.cuda.is_available() and device == "cuda" else "cpu"
+        self.idle_timeout = idle_timeout
+
+        # Current models
+        self.current_transcriber = None
+        self.current_transcriber_model = None
+        self.current_translator = None
+        self.current_translator_pair = (None, None)
+
+        # Segmentation model for diarization
+        self._segmentation_model = None
+
+        # Unload timer and lock
+        self.unload_timer = None
+        self.lock = threading.RLock()
+        self.last_access = time.time()
+
+        logger.info(f"ModelManager initialized (device={self.device}, idle_timeout={idle_timeout}s)")
+
+    def _reset_timer(self):
+        """Reset the idle timer."""
+        with self.lock:
+            if self.unload_timer:
+                self.unload_timer.cancel()
+            self.unload_timer = threading.Timer(self.idle_timeout, self._unload_if_idle)
+            self.unload_timer.daemon = True
+            self.unload_timer.start()
+
+    def _unload_if_idle(self):
+        """Unload models if idle timeout has been reached."""
+        with self.lock:
+            if time.time() - self.last_access >= self.idle_timeout:
+                logger.info("Idle timeout reached, unloading models")
+                self.unload_all()
+                self.unload_timer = None
+            else:
+                remaining = self.idle_timeout - (time.time() - self.last_access)
+                if remaining > 0:
+                    self.unload_timer = threading.Timer(remaining, self._unload_if_idle)
+                    self.unload_timer.daemon = True
+                    self.unload_timer.start()
+
+    def _update_access(self):
+        """Update last access time and restart timer."""
+        with self.lock:
+            self.last_access = time.time()
+            self._reset_timer()
+
+    def get_transcriber(self, model_size="tiny"):
+        """
+        Return the transcriber, loading if needed or if model size changed.
+
+        Args:
+            model_size: Whisper model size
+
+        Returns:
+            TranscriberGPU instance
+        """
+        with self.lock:
+            self._update_access()
+            if self.current_transcriber is None or self.current_transcriber_model != model_size:
+                self.unload_transcriber()
+                logger.info(f"Loading transcriber model {model_size}")
+                self.current_transcriber = TranscriberGPU(model_size=model_size, device=self.device)
+                self.current_transcriber_model = model_size
+            return self.current_transcriber
+
+    def get_translator(self, source_lang="pt", target_lang="en"):
+        """
+        Return the translator, loading if needed or if parameters changed.
+
+        Args:
+            source_lang: Source language code
+            target_lang: Target language code
+
+        Returns:
+            Translator instance
+        """
+        with self.lock:
+            self._update_access()
+            if self.current_translator is None or self.current_translator_pair != (source_lang, target_lang):
+                self.unload_translator()
+                logger.info(f"Loading translator {source_lang} -> {target_lang}")
+                try:
+                    self.current_translator = Translator(
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        device=self.device
+                    )
+                    self.current_translator_pair = (source_lang, target_lang)
+                except Exception as e:
+                    logger.error(f"Failed to load translator: {e}")
+                    raise
+            return self.current_translator
+
+    def get_segmentation_model(self):
+        """
+        Return a segmentation model for diart, loaded from pyannote.audio.
+        Requires a Hugging Face token for gated model.
+        Este método só é usado pelo meeting recorder. Se o pyannote não estiver instalado,
+        a importação falhará silenciosamente e retornará None.
+        """
+        with self.lock:
+            self._update_access()
+            if self._segmentation_model is None:
+                token = os.getenv("HUGGINGFACE_TOKEN")
+                if not token:
+                    logger.error("HUGGINGFACE_TOKEN environment variable not set.")
+                    raise ValueError("HUGGINGFACE_TOKEN not set")
+
+                logger.info("Loading segmentation model (pyannote/segmentation-3.0)")
+                try:
+                    # Importações necessárias para segurança
+                    from pyannote.audio import Model as PyannoteModel
+                    from pyannote.audio.core.task import Specifications, Task, Problem, Resolution
+
+                    # Adiciona as classes necessárias aos globals seguros
+                    add_safe_globals([Specifications, Task, Problem, Resolution])
+
+                    # Carrega o modelo usando o token
+                    self._segmentation_model = PyannoteModel.from_pretrained(
+                        "pyannote/segmentation-3.0",
+                        use_auth_token=token
+                    )
+                    self._segmentation_model = self._segmentation_model.to(self.device)
+                    self._segmentation_model.eval()
+                except ImportError:
+                    logger.error("pyannote.audio não está instalado. Instale-o no ambiente do meeting recorder.")
+                    raise
+                except Exception as e:
+                    logger.error(f"Failed to load segmentation model: {e}")
+                    raise
+            return self._segmentation_model
+
+    def unload_segmentation_model(self):
+        """Unload segmentation model."""
+        with self.lock:
+            if self._segmentation_model:
+                logger.debug("Unloading segmentation model")
+                del self._segmentation_model
+                self._segmentation_model = None
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+    def unload_transcriber(self):
+        """Unload the transcriber from GPU."""
+        with self.lock:
+            if self.current_transcriber:
+                logger.debug("Unloading transcriber")
+                if hasattr(self.current_transcriber, 'unload'):
+                    self.current_transcriber.unload()
+                del self.current_transcriber
+                self.current_transcriber = None
+                self.current_transcriber_model = None
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+    def unload_translator(self):
+        """Unload the translator from GPU."""
+        with self.lock:
+            if self.current_translator:
+                logger.debug("Unloading translator")
+                self.current_translator.unload()
+                del self.current_translator
+                self.current_translator = None
+                self.current_translator_pair = (None, None)
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+    def unload_all(self):
+        """Unload all models."""
+        # Check if lock exists (for safety in __del__)
+        if not hasattr(self, 'lock'):
+            logger.warning("ModelManager unload_all called without lock attribute")
+            # Fallback: unload without lock
+            if self.current_transcriber:
+                if hasattr(self.current_transcriber, 'unload'):
+                    self.current_transcriber.unload()
+                del self.current_transcriber
+            if self.current_translator:
+                self.current_translator.unload()
+                del self.current_translator
+            return
+
+        with self.lock:
+            self.unload_transcriber()
+            self.unload_translator()
+            self.unload_segmentation_model()
+            if self.unload_timer:
+                self.unload_timer.cancel()
+                self.unload_timer = None
+            logger.info("All models unloaded")
+
+    def __del__(self):
+        """Destructor: attempt to unload models."""
+        try:
+            self.unload_all()
+        except Exception as e:
+            logger.error(f"Error during ModelManager destruction: {e}")

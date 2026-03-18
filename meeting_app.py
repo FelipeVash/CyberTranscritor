@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from frontend.meeting_window import MeetingWindow
-from utils.logger import logger
+from apps.meeting.window import MeetingWindow
+from core.utils.logger import logger
 
 def main():
     logger.info("Starting Meeting Recorder")

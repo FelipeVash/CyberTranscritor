@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from utils.hardware_detector import (
+from core.utils.hardware_detector import (
     detect_device, get_gpu_memory, recommend_whisper_model,
     recommend_translation_model, get_recommended_settings
 )
@@ -40,9 +40,9 @@ def test_get_gpu_memory_fallback_torch():
         assert mem == 6.0
 
 def test_recommend_whisper_model_cpu():
-    with patch('utils.hardware_detector.get_ram_gb', return_value=8.0):
+    with patch('core.utils.hardware_detector.get_ram_gb', return_value=8.0):
         assert recommend_whisper_model('cpu') == 'tiny'
-    with patch('utils.hardware_detector.get_ram_gb', return_value=16.0):
+    with patch('core.utils.hardware_detector.get_ram_gb', return_value=16.0):
         assert recommend_whisper_model('cpu') == 'base'
 
 def test_recommend_whisper_model_gpu():
@@ -62,8 +62,8 @@ def test_recommend_translation_model_gpu():
     assert recommend_translation_model('cuda', gpu_mem=2.0) == 'nllb-200M'
 
 def test_get_recommended_settings():
-    with patch('utils.hardware_detector.detect_device', return_value='cuda'), \
-         patch('utils.hardware_detector.get_gpu_memory', return_value=8.0):
+    with patch('core.utils.hardware_detector.detect_device', return_value='cuda'), \
+         patch('core.utils.hardware_detector.get_gpu_memory', return_value=8.0):
         settings = get_recommended_settings()
         assert settings['device'] == 'cuda'
         assert settings['model_size'] == 'medium'

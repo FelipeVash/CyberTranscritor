@@ -1,7 +1,7 @@
 # tests/test_translation_cache.py
 import pytest
 from unittest.mock import Mock
-from backend.services.translation_service import TranslationService, TranslationCache
+from core.backend.services.translation_service import TranslationService, TranslationCache
 
 def test_cache_hit():
     """Repeating the same translation should return from cache without calling translator."""

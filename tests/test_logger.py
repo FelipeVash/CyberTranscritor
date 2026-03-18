@@ -1,6 +1,6 @@
 # tests/test_logger.py
 import logging
-from utils.logger import setup_logger
+from core.utils.logger import setup_logger
 
 def test_logger_initialization():
     """Testa se o logger é inicializado sem erros."""

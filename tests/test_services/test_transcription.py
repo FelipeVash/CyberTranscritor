@@ -1,7 +1,7 @@
 # tests/test_services/test_transcription.py
 import pytest
 from unittest.mock import MagicMock, patch
-from backend.services.transcription_service import TranscriptionService, TranscriptionError
+from core.backend.services.transcription_service import TranscriptionService, TranscriptionError
 
 @pytest.fixture
 def mock_model_manager():

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch, call
 import pytest
 import tkinter as tk
 from controller.app_controller import AppController
-from utils.config_persistence import CONFIG_FILE
+from core.utils.config_persistence import CONFIG_FILE
 
 @pytest.fixture
 def mock_controller():
@@ -78,7 +78,7 @@ def test_toggle_recording(mock_controller):
 
 def test_start_recording(mock_controller):
     """Test start_recording method."""
-    with patch('backend.audio.recorder.AudioRecorder') as MockRecorder:
+    with patch('core.backend.audio.recorder.AudioRecorder') as MockRecorder:
         mock_recorder = MagicMock()
         MockRecorder.return_value = mock_recorder
 

@@ -1,7 +1,7 @@
 # tests/test_services/test_translation.py
 import pytest
 from unittest.mock import MagicMock, patch
-from backend.services.translation_service import TranslationService, TranslationError
+from core.backend.services.translation_service import TranslationService, TranslationError
 
 @pytest.fixture
 def mock_model_manager():
