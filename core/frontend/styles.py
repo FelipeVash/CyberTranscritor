@@ -105,8 +105,12 @@ def configure_styles(style):
 
     # Secondary button style (used for "Clear", etc.)
     style.configure("secondary.TButton",
-                    font=base_font,
+                background="#6c757d",
+                foreground="white",
+                font=base_font,
                     padding=button_padding)
+    style.map("secondary.TButton",
+            background=[("active", "#5a6268"), ("pressed", "#545b62")])
 
     # LabelFrame borders
     style.configure("TLabelframe",

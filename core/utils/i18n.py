@@ -23,20 +23,34 @@ class I18n:
         self.load_language(self.current_language)
     
     def _detect_system_language(self):
-        """Detect system language (e.g., pt_BR, en_US, es_ES)."""
         try:
-            lang, _ = locale.getdefaultlocale()
-            if lang:
-                lang = lang.replace('_', '-').lower()
+            # Tenta obter a localidade atual do programa
+            locale_str = locale.getlocale()[0]  # ex: 'pt_BR'
+            if locale_str:
+                lang = locale_str.replace('_', '-').lower()
                 if lang.startswith('pt'):
                     return 'pt-br'
                 elif lang.startswith('en'):
                     return 'en'
                 elif lang.startswith('es'):
                     return 'es'
-            return 'en'
-        except:
-            return 'en'
+        except Exception:
+            pass
+
+        # Fallback: variável de ambiente LANG
+        try:
+            lang = os.environ.get('LANG', 'en_US').split('.')[0].replace('_', '-').lower()
+            if lang.startswith('pt'):
+                return 'pt-br'
+            elif lang.startswith('en'):
+                return 'en'
+            elif lang.startswith('es'):
+                return 'es'
+        except Exception:
+            pass
+
+        # Último fallback
+        return 'en'
     
     def load_language(self, lang_code):
         """Load translation file for the specified language."""

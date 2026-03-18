@@ -1,0 +1,13 @@
+torch>=2.6.0
+torchaudio>=2.6.0
+transformers>=4.42.0
+accelerate>=0.33.0
+sounddevice
+soundfile
+piper-tts
+numpy<2.0.0
+ttkbootstrap
+python-dotenv
+requests
+beautifulsoup4
+lxml

@@ -1,137 +1,133 @@
-# frontend/dialogs.py
 """
-Custom dialog windows for the application.
-Currently provides a grammar correction dialog and a close confirmation dialog.
+Dialog windows for the application.
+Contains correction dialog and close confirmation dialog.
 All logging is done through the centralized logger.
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
-import threading
-from core.backend.services.correction_service import CorrectionService, CorrectionError
+from tkinter import ttk, messagebox
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
 from core.utils.i18n import _
 from core.utils.logger import logger
+from core.backend.services.correction_service import CorrectionService
 
-# ==================== GRAMMAR CORRECTION DIALOG ====================
+# ==================== CORRECTION DIALOG ====================
 
-def show_correction_dialog(parent, title, original_text, callback, lang, correction_service=None):
+def show_correction_dialog(parent, title, initial_text, callback, language, correction_service=None):
     """
-    Display a grammar correction dialog with confirmation.
-
+    Display a dialog for text correction using LanguageTool.
+    
     Args:
         parent: Parent window
-        title: Dialog window title
-        original_text: Text to be corrected
-        callback: Function that receives the corrected text (called when Apply is clicked)
-        lang: Language code for correction
-        correction_service: Instance of CorrectionService (if None, a new one is created)
+        title: Dialog title
+        initial_text: Text to correct
+        callback: Function to call with corrected text
+        language: Language code (e.g., 'pt', 'en')
+        correction_service: Optional CorrectionService instance
     """
-    logger.debug(f"Opening correction dialog for language '{lang}'")
-
-    if correction_service is None:
-        correction_service = CorrectionService()
-
-    dialog = tk.Toplevel(parent)
+    dialog = tb.Toplevel(parent)
     dialog.title(title)
     dialog.geometry("700x500")
     dialog.transient(parent)
     dialog.grab_set()
 
-    # Original text frame
-    orig_frame = ttk.LabelFrame(dialog, text=_("dialogs.correction.original"), padding=5)
-    orig_frame.pack(fill="both", expand=True, padx=10, pady=5)
+    # Centralizar
+    dialog.update_idletasks()
+    x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
+    y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
+    dialog.geometry(f"+{x}+{y}")
 
-    orig_text = scrolledtext.ScrolledText(orig_frame, wrap=tk.WORD, height=6, font=("Consolas", 10))
-    orig_text.pack(fill="both", expand=True)
-    orig_text.insert(tk.END, original_text)
-    orig_text.config(state=tk.DISABLED)
+    # Área de texto
+    text_frame = ttk.Frame(dialog, padding=10)
+    text_frame.pack(fill=tk.BOTH, expand=True)
 
-    # Status label (shows "Correcting..." or error messages)
-    status_label = ttk.Label(dialog, text=_("dialogs.correction.correcting"), foreground="orange")
-    status_label.pack(pady=5)
+    text_widget = tk.Text(text_frame, wrap=tk.WORD, font=("Consolas", 11),
+                          bg="#1e1e1e", fg="#d4d4d4", insertbackground="white")
+    text_widget.insert(tk.END, initial_text)
+    text_widget.pack(fill=tk.BOTH, expand=True)
 
-    # Corrected text frame (initially empty, will be populated after correction)
-    corr_frame = ttk.LabelFrame(dialog, text=_("dialogs.correction.corrected"), padding=5)
-    corr_frame.pack(fill="both", expand=True, padx=10, pady=5)
+    # Barra de rolagem
+    scrollbar = ttk.Scrollbar(text_widget, orient=tk.VERTICAL, command=text_widget.yview)
+    text_widget.config(yscrollcommand=scrollbar.set)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    corr_text = scrolledtext.ScrolledText(corr_frame, wrap=tk.WORD, height=6, font=("Consolas", 10))
-    corr_text.pack(fill="both", expand=True)
-    corr_text.config(state=tk.DISABLED)
+    # Frame de botões
+    btn_frame = ttk.Frame(dialog, padding=10)
+    btn_frame.pack(fill=tk.X)
 
-    # Button frame (initially empty, buttons added after correction)
-    btn_frame = ttk.Frame(dialog)
-    btn_frame.pack(pady=10)
+    def apply_correction():
+        """Apply grammar correction to the text."""
+        if correction_service:
+            try:
+                corrected = correction_service.correct(text_widget.get(1.0, tk.END).strip(), language)
+                text_widget.delete(1.0, tk.END)
+                text_widget.insert(tk.END, corrected)
+                logger.debug("Correction applied")
+            except Exception as e:
+                logger.error(f"Correction failed: {e}")
+                messagebox.showerror(_("dialogs.common.error"), str(e), parent=dialog)
 
-    def do_correction():
-        """Run correction in a background thread."""
-        try:
-            logger.debug("Starting correction thread")
-            corrected = correction_service.correct(original_text, lang)
-            dialog.after(0, lambda: display_corrected(corrected))
-        except CorrectionError as e:
-            logger.error(f"Correction error: {e}")
-            dialog.after(0, lambda: show_error(_(e.key, **e.kwargs) if hasattr(e, 'key') else str(e)))
-        except Exception as e:
-            logger.error(f"Unexpected correction error: {e}")
-            dialog.after(0, lambda: show_error(f"Unexpected error: {e}"))
+    def ok():
+        """Confirm and return the corrected text."""
+        callback(text_widget.get(1.0, tk.END).strip())
+        dialog.destroy()
 
-    def display_corrected(corrected):
-        """Display the corrected text and add action buttons."""
-        logger.debug("Correction completed, displaying result")
-        status_label.destroy()  # remove status label
-        corr_text.config(state=tk.NORMAL)
-        corr_text.delete(1.0, tk.END)
-        corr_text.insert(tk.END, corrected)
-        corr_text.config(state=tk.DISABLED)
+    def cancel():
+        """Cancel without saving."""
+        dialog.destroy()
 
-        # Add Apply and Cancel buttons
-        ttk.Button(btn_frame, text=_("dialogs.correction.apply"),
-                   command=lambda: [callback(corrected), dialog.destroy()]).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text=_("dialogs.correction.cancel"),
-                   command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    # Botões
+    if correction_service:
+        btn_correct = tb.Button(btn_frame, text=_("dialogs.correction.correct"),
+                                style="Cyan.TButton", command=apply_correction)
+        btn_correct.pack(side=tk.LEFT, padx=5)
 
-    def show_error(msg):
-        """Display an error message and a Close button."""
-        logger.error(f"Correction dialog error: {msg}")
-        status_label.config(text=msg, foreground="red")
-        ttk.Button(btn_frame, text=_("dialogs.correction.close"),
-                   command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    btn_ok = tb.Button(btn_frame, text=_("common.buttons.ok"),
+                       style="Pink.TButton", command=ok)
+    btn_ok.pack(side=tk.LEFT, padx=5)
 
-    # Start correction in a separate thread
-    threading.Thread(target=do_correction, daemon=True).start()
+    btn_cancel = tb.Button(btn_frame, text=_("common.buttons.cancel"),
+                           style="secondary.TButton", command=cancel)
+    btn_cancel.pack(side=tk.LEFT, padx=5)
 
+    dialog.bind("<Escape>", lambda e: cancel())
+    dialog.protocol("WM_DELETE_WINDOW", cancel)
 
 # ==================== CLOSE CONFIRMATION DIALOG ====================
 
 def show_close_dialog(parent):
     """
-    Exibe um diálogo personalizado ao fechar a janela principal.
-    Retorna:
-        'minimize' se o usuário escolher minimizar,
-        'exit' se escolher sair,
-        None se cancelar.
+    Exibe um diálogo perguntando se o usuário deseja minimizar para a bandeja ou fechar.
+    Retorna 'minimize', 'exit' ou None (se cancelado).
     """
-    dialog = tk.Toplevel(parent)
-    dialog.title(_("dialogs.close_dialog.title"))
+    dialog = tb.Toplevel(parent)
+    dialog.title(_("dialogs.close_dialog.title")) 
+    dialog.geometry("500x180")
     dialog.transient(parent)
     dialog.grab_set()
-    dialog.focus_force()
     dialog.resizable(False, False)
 
-    # Frame principal com padding
-    main_frame = ttk.Frame(dialog, padding="20")
-    main_frame.pack(fill=tk.BOTH, expand=True)
-
-    # Mensagem
-    label = ttk.Label(main_frame, text=_("dialogs.close_dialog.message"),
-                      wraplength=350, justify=tk.CENTER)
-    label.pack(pady=10, padx=10)
-
-    # Botões
-    btn_frame = ttk.Frame(main_frame)
-    btn_frame.pack(pady=15)
+    # Centralizar em relação ao pai
+    dialog.update_idletasks()
+    x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
+    y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
+    dialog.geometry(f"+{x}+{y}")
 
     result = None
+
+    frame = tb.Frame(dialog, padding=20)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    tb.Label(
+        frame,
+        text=_("dialogs.close_dialog.message"),
+        font=("Arial", 12),
+        wraplength=350
+    ).pack(pady=10)
+
+    btn_frame = tb.Frame(frame)
+    btn_frame.pack(pady=10)
 
     def on_minimize():
         nonlocal result
@@ -144,28 +140,36 @@ def show_close_dialog(parent):
         dialog.destroy()
 
     def on_cancel():
+        nonlocal result
+        result = None
         dialog.destroy()
 
-    btn_minimize = ttk.Button(btn_frame, text=_("dialogs.close_dialog.minimize"),
-                              command=on_minimize, width=10)
-    btn_minimize.pack(side=tk.LEFT, padx=8)
+    tb.Button(
+        btn_frame,
+        text=_("dialogs.close_dialog.minimize"),
+        style="Pink.TButton",
+        width=12,
+        command=on_minimize
+    ).pack(side=tk.LEFT, padx=5)
 
-    btn_exit = ttk.Button(btn_frame, text=_("dialogs.close_dialog.exit"),
-                          command=on_exit, width=10)
-    btn_exit.pack(side=tk.LEFT, padx=8)
+    tb.Button(
+        btn_frame,
+        text=_("dialogs.close_dialog.exit"),
+        style="Cyan.TButton",
+        width=12,
+        command=on_exit
+    ).pack(side=tk.LEFT, padx=5)
 
-    btn_cancel = ttk.Button(btn_frame, text=_("dialogs.close_dialog.cancel"),
-                            command=on_cancel, width=10)
-    btn_cancel.pack(side=tk.LEFT, padx=8)
+    tb.Button(
+        btn_frame,
+        text=_("common.buttons.cancel"),
+        style="secondary.TButton",
+        width=12,
+        command=on_cancel
+    ).pack(side=tk.LEFT, padx=5)
 
-    # Fecha com Escape
     dialog.bind("<Escape>", lambda e: on_cancel())
-
-    # Centraliza após calcular tamanho
-    dialog.update_idletasks()
-    x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (dialog.winfo_width() // 2)
-    y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (dialog.winfo_height() // 2)
-    dialog.geometry(f"+{x}+{y}")
+    dialog.protocol("WM_DELETE_WINDOW", on_cancel)
 
     parent.wait_window(dialog)
     return result

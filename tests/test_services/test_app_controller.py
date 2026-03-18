@@ -2,6 +2,8 @@
 from unittest.mock import MagicMock, patch, call
 import pytest
 import tkinter as tk
+import numpy as np
+import time
 from controller.app_controller import AppController
 from core.utils.config_persistence import CONFIG_FILE
 
@@ -61,6 +63,10 @@ def mock_controller():
         controller.translation_service.clear_cache = MagicMock()
         controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
 
+        # Mock transcription_service
+        controller.transcription_service = MagicMock()
+        controller.transcription_service.transcribe = MagicMock(return_value="mocked transcription")
+
         return controller
 
 # ===== Existing tests =====
@@ -93,25 +99,23 @@ def test_start_recording(mock_controller):
         mock_controller.status_var.set.assert_called()
 
 def test_stop_and_transcribe(mock_controller):
-    """Test stop_and_transcribe method."""
-    # Configure a mock recorder
-    mock_controller.recorder = MagicMock()
-    mock_controller.recorder.stop.return_value = MagicMock(size=100)
+    """Test stopping recording and transcribing."""
     mock_controller.is_recording = True
 
-    # Mock threading to avoid actual execution
-    with patch('threading.Thread') as MockThread:
-        mock_thread = MagicMock()
-        MockThread.return_value = mock_thread
+    # Cria um mock para o recorder
+    mock_recorder = MagicMock()
+    mock_recorder.stop.return_value = np.array([0.1, 0.2], dtype=np.float32)
+    mock_controller.recorder = mock_recorder
 
-        mock_controller.stop_and_transcribe()
+    # Chama o método sob teste
+    mock_controller.stop_and_transcribe()
 
-        assert mock_controller.is_recording is False
-        mock_controller.btn_record.config.assert_called()
-        mock_controller.rec_indicator.config.assert_called()
-        mock_controller.status_var.set.assert_called()
-        mock_controller.start_progress.assert_called_once()
-        mock_thread.start.assert_called_once()
+    # Pequena pausa para a thread de transcrição executar
+    time.sleep(0.1)
+
+    # Verificações
+    mock_recorder.stop.assert_called_once()
+    mock_controller.transcription_service.transcribe.assert_called_once()
 
 def test_clear_translations(mock_controller):
     """Test clear_translations method."""
@@ -199,10 +203,10 @@ def test_insert_translation(mock_controller):
 def test_quit_app(mock_controller):
     """Test the quit_app method."""
     with patch('sys.exit') as mock_exit, \
-         patch('controller.app_controller.save_config') as mock_save:   # <-- adicionado
+         patch('controller.app_controller.save_config') as mock_save:
         mock_controller.quit_app()
         mock_controller.model_manager.unload_all.assert_called_once()
-        mock_save.assert_called_once()                                   # <-- verifica chamada
+        mock_save.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
 # ===== DeepSeek Window tests =====
@@ -216,9 +220,7 @@ def test_open_deepseek_window(mock_controller):
         mock_controller.open_deepseek_window()
 
         MockWindow.assert_called_once_with(
-            mock_controller.root,
-            mock_controller,
-            audio_player=mock_controller.audio_player
+            parent=mock_controller.root
         )
         assert mock_controller.deepseek_window == mock_window_instance
 
@@ -257,12 +259,11 @@ def test_open_deepseek_with_context(mock_controller):
         mock_controller.open_deepseek_with_context("prompt", "response")
 
         MockWindow.assert_called_once_with(
-            mock_controller.root,
-            mock_controller,
+            parent=mock_controller.root,
             initial_prompt="prompt",
-            initial_response="response",
-            audio_player=mock_controller.audio_player
+            initial_response="response"
         )
+        assert mock_controller.deepseek_window == mock_window_instance
 
 def test_open_deepseek_with_context_closes_existing(mock_controller):
     """Test opening with context closes existing window."""

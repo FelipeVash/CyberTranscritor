@@ -4,3 +4,4 @@ pulsectl
 torch>=2.10.0
 torchaudio>=2.10.0
 huggingface-hub
+ttkbootstrap

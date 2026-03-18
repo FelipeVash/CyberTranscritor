@@ -1,6 +1,4 @@
-# ======================================================================
-# ARQUIVO: frontend/meeting_window.py
-# ======================================================================
+# apps/meeting/window.py
 """
 Meeting window for recording and processing meetings.
 Independent from main application.
@@ -9,9 +7,11 @@ All logging is done through the centralized logger.
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+import ttkbootstrap as tb
 from core.utils.i18n import _
 from core.utils.logger import logger
-from .controller import MeetingController  # ou from apps.meeting.controller import MeetingController
+from apps.meeting.controller import MeetingController
+from core.frontend.styles import configure_styles
 
 class MeetingWindow:
     """
@@ -19,10 +19,15 @@ class MeetingWindow:
     """
 
     def __init__(self):
-        self.root = tk.Tk()
+        # Usa tb.Window em vez de tk.Tk para aplicar o tema
+        self.root = tb.Window(themename="darkly")
         self.root.title("🎤 Meeting Recorder")
         self.root.geometry("700x600")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        # Aplica os estilos customizados
+        style = tb.Style.get_instance()
+        configure_styles(style)
 
         self.controller = MeetingController(self)
 
@@ -55,12 +60,23 @@ class MeetingWindow:
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(fill=tk.X, pady=10)
 
-        self.start_btn = ttk.Button(control_frame, text="▶ Iniciar Gravação",
-                                     command=self.start_recording, width=20)
+        self.start_btn = tb.Button(
+            control_frame,
+            text=_("common.buttons.record"),
+            style="Pink.TButton",
+            width=20,
+            command=self.start_recording
+        )
         self.start_btn.pack(side=tk.LEFT, padx=5)
 
-        self.stop_btn = ttk.Button(control_frame, text="⏹ Parar Gravação",
-                                    command=self.stop_recording, width=20, state=tk.DISABLED)
+        self.stop_btn = tb.Button(
+            control_frame,
+            text=_("common.buttons.stop_record"),
+            style="secondary.TButton",
+            width=20,
+            state=tk.DISABLED,
+            command=self.stop_recording
+        )
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
         # Current speaker label

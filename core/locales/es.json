@@ -3,290 +3,28 @@
     "language": "es-ES",
     "language_name": "Español (España)"
   },
-  "main_window": {
-    "title": "Studio de Transcripción Cyberpunk",
-    "menu": {
-      "file": "Archivo",
-      "edit": "Editar",
-      "tools": "Herramientas",
-      "help": "Ayuda",
-      "file_menu": {
-        "save_transcription": "Guardar transcripción",
-        "save_translations": "Guardar traducciones",
-        "exit": "Salir"
-      },
-      "edit_menu": {
-        "correct_transcription": "Corregir transcripción",
-        "correct_translation": "Corregir traducción"
-      },
-      "tools_menu": {
-        "settings": "Configuración",
-        "open_deepseek": "Abrir DeepSeek",
-        "cache_stats": "Estadísticas de Caché"
-      },
-      "help_menu": {
-        "about": "Acerca de"
-      }
+  "common": {
+    "buttons": {
+      "record": "▶ Grabar",
+      "stop_record": "⏹ DETENER GRABACIÓN",
+      "ok": "Aceptar",
+      "cancel": "Cancelar",
+      "yes": "Sí",
+      "no": "No",
+      "save": "💾 Guardar",
+      "clear": "🗑️ Limpiar",
+      "correct": "✍️ Corregir"
     },
-    "controls": {
-      "frame_title": "⚡ CONTROLES",
-      "model": "Modelo:",
-      "device": "Dispositivo:",
-      "source_language": "Idioma (origen):",
-      "target_language": "Traducir a:",
-      "buttons": {
-        "record": "▶ Grabar",
-        "stop_record": "⏹ DETENER GRABACIÓN",
-        "record_tooltip": "Iniciar/detener grabación (Super+1)",
-        "translate": "🌐 Traducir",
-        "translate_tooltip": "Traducir transcripción al idioma seleccionado (Super+2)",
-        "multitranslate": "🌍 MultiTraducción",
-        "multitranslate_tooltip": "Traducir transcripción a todos los idiomas",
-        "save": "💾 Guardar",
-        "save_tooltip": "Guardar transcripción actual en archivo (Super+3)",
-        "deepseek": "🤖 DeepSeek",
-        "deepseek_tooltip": "Abrir/restaurar ventana de consulta DeepSeek (Super+5)",
-        "correct": "✍️ Corregir",
-        "correct_tooltip": "Corregir gramática de la transcripción (Super+4)",
-        "clear": "🗑️ Limpiar",
-        "clear_tooltip": "Limpiar área de transcripción",
-        "save_translations": "💾 Guardar Traducciones",
-        "save_translations_tooltip": "Guardar todas las traducciones en un archivo"
-      }
-    },
-    "format_toolbar": {
-      "bold": "N",
-      "bold_tooltip": "Negrita (Ctrl+B)",
-      "italic": "I",
-      "italic_tooltip": "Cursiva (Ctrl+I)",
-      "underline": "S",
-      "underline_tooltip": "Subrayado (Ctrl+U)",
-      "strike": "T",
-      "strike_tooltip": "Tachado",
-      "font_size": "Tamaño ▼",
-      "font_size_tooltip": "Cambiar tamaño de fuente (todo el texto)",
-      "color": "🎨",
-      "color_tooltip": "Aplicar color al texto seleccionado",
-      "heading": "H",
-      "heading_tooltip": "Aplicar estilo de título",
-      "datetime": "🕒",
-      "datetime_tooltip": "Insertar fecha y hora actual",
-      "align_left": "⬅",
-      "align_left_tooltip": "Alinear párrafo a la izquierda",
-      "align_center": "⏺",
-      "align_center_tooltip": "Centrar párrafo",
-      "align_right": "➡",
-      "align_right_tooltip": "Alinear párrafo a la derecha",
-      "align_justify": "↔",
-      "align_justify_tooltip": "Justificar párrafo",
-      "indent_increase": "⇢",
-      "indent_increase_tooltip": "Aumentar sangría (añadir 4 espacios)",
-      "indent_decrease": "⇠",
-      "indent_decrease_tooltip": "Disminuir sangría (quitar 4 espacios)",
-      "numbered_list": "1.",
-      "numbered_list_tooltip": "Insertar/continuar lista numerada (Enter incrementa)",
-      "bullet_list": "•",
-      "bullet_list_tooltip": "Insertar/quitar viñeta en la línea actual",
-      "table": "⧠",
-      "table_tooltip": "Insertar tabla simple 3x2",
-      "export_html": "HTML",
-      "export_html_tooltip": "Exportar contenido como HTML (texto plano)",
-      "import_html": "Importar",
-      "import_html_tooltip": "Importar desde archivo HTML (extrae texto plano)"
-    },
-    "tabs": {
-      "transcription": "📝 TRANSCRIPCIÓN",
-      "translations": "🌐 TRADUCCIONES"
-    },
-    "indicators": {
+    "status": {
       "recording": "🔴 GRABANDO...",
       "stopped": "⏹ DETENIDO",
       "processing": "⏳ Procesando...",
       "ready": "✅ Listo.",
       "error": "❌ Error",
-      "warning": "⚠️ Aviso"
-    },
-    "status": {
-      "microphone_ok": "🎤 Micrófono OK. {count} dispositivo(s)",
-      "no_microphone": "❌ No se encontró dispositivo de entrada de audio.",
-      "loading_model": "⏳ Cargando modelo {model}...",
-      "model_loaded": "✅ Modelo {model} cargado.",
-      "transcribing": "�93 Transcripción...",
-      "transcribing_done": "✅ Transcripción completada.",
-      "translating": "⏳ Traduciendo...",
-      "translating_done": "✅ Traducción completada.",
-      "saving": "💾 Guardando...",
-      "saved": "✅ Guardado en {filename}",
-      "correcting": "✍️ Corrigiendo...",
-      "correcting_done": "✅ Corrección completada.",
-      "precise_transcription_done": "Transcripción refinada completada",
-      "loading_precise_translator": "Cargando modelo preciso de traducción...",
-      "refining_translation": "Refinando traducción...",
-      "precise_translation_done": "Traducción refinada completada",
-      "translating_fast": "Traduciendo con modelo rápido..."
-    },
-    "tooltips": {
-      "model": "Modelo Whisper para transcripción",
-      "device": "Dispositivo de inferencia (GPU recomendada)",
-      "source_language": "Idioma del audio (para transcripción)",
-      "target_language": "Idioma de destino para traducción",
-      "rec_indicator": "Estado de la grabación",
-      "status_bar": "Barra de estado"
-    }
-  },
-  "settings_window": {
-    "title": "Configuración",
-    "labels": {
-      "ui_language": "Idioma de la interfaz:",
-      "whisper_model": "Modelo Whisper:",
-      "device": "Dispositivo:",
-      "tts_voice": "Voz TTS:",
-      "translation_model": "Modelo de traducción:",
-      "idle_timeout": "Tiempo de inactividad (segundos):",
-      "translation_cache": "Caché de Traducciones"
-    },
-    "tooltips": {
-      "ui_language": "Seleccionar idioma de la interfaz",
-      "whisper_model": "Modelo para transcripción (mayor = más preciso, más lento)",
-      "device": "Dispositivo para inferencia (GPU recomendada)",
-      "tts_voice": "Elegir voz para síntesis de habla",
-      "translation_model": "Modelo para traducción (mayor = más preciso, más lento)",
-      "idle_timeout": "Tiempo sin uso antes de descargar modelos de la GPU",
-      "clear_cache": "Eliminar todas las traducciones en caché"
-    },
-    "buttons": {
-      "ok": "OK",
-      "apply": "Aplicar",
-      "cancel": "Cancelar",
-      "clear_cache": "Limpiar Caché",
-      "refresh_stats": "Actualizar Estadísticas"
-    },
-    "cache_stats": "Tamaño: {size}/{max_size} | Aciertos: {hits} | Fallos: {misses}",
-    "cache_stats_unavailable": "Estadísticas no disponibles"
-  },
-  "deepseek_window": {
-    "title": "🤖 DeepSeek - Consulta por Voz",
-    "options_frame": "⚙️ Opciones de Consulta",
-    "controls": {
-      "record": "▶ Grabar",
-      "stop_record": "⏹ Parar y Enviar",
-      "record_tooltip": "Iniciar grabación de audio (Ctrl+R)",
-      "send_text": "📤 Enviar",
-      "send_tooltip": "Enviar texto escrito (Enter)",
-      "stop_audio": "⏹ Parar Audio",
-      "stop_audio_tooltip": "Detener la reproducción de audio en curso",
-      "listen": "🔊 Escuchar respuesta",
-      "listen_tooltip": "Escuchar la última respuesta (TTS)",
-      "tts_unavailable": "🔊 TTS no disponible"
-    },
-    "options": {
-      "thinking": "Deep Think (razonamiento detallado)",
-      "thinking_tooltip": "Activar modo de razonamiento profundo",
-      "web_search": "Búsqueda en Internet",
-      "web_search_tooltip": "Permitir búsqueda actualizada (vía DuckDuckGo)",
-      "correction": "Corregir texto transcrito",
-      "correction_tooltip": "Corregir automáticamente la transcripción antes de enviar"
-    },
-    "labels": {
-      "history": "📜 Historial",
-      "input": "✏️ Entrada (escriba o use audio)",
-      "status_idle": "⏹ Detenido",
-      "status_recording": "🔴 Grabando...",
-      "status_transcribing": "⏳ Transcribiendo...",
-      "status_consulting": "⏳ Consultando DeepSeek...",
-      "status_response": "✅ Respuesta recibida",
-      "status_preloaded": "✅ Respuesta precargada",
-      "hint": "Enter: enviar | Shift+Enter: nueva línea | Ctrl+R: grabar | Esc: cerrar"
-    },
-    "messages": {
-      "no_audio": "No se grabó audio.",
-      "no_text": "Nada que enviar.",
-      "no_response": "No hay respuesta disponible.",
-      "tts_error": "TTS no disponible.",
-      "transcription_error": "Error en la transcripción",
-      "deepseek_error": "Error en la consulta: {error}"
-    },
-    "history": {
-      "user_prefix": "[{timestamp}] Tú:",
-      "assistant_prefix": "[{timestamp}] DeepSeek:"
-    }
-  },
-  "dialogs": {
-    "correction": {
-      "title": "Corrección de Transcripción",
-      "title_response": "Corrección de Respuesta",
-      "original": "Texto Original",
-      "corrected": "Texto Corregido",
-      "apply": "Aplicar",
-      "cancel": "Cancelar",
-      "close": "Cerrar",
-      "correcting": "Corrigiendo...",
-      "error": "Error en la corrección: {error}",
-      "cache_stats": {
-        "title": "Estadísticas de Caché de Traducciones"
-      }
-    },
-    "common": {
-      "error": "Error",
-      "warning": "Aviso",
+      "warning": "⚠️ Advertencia",
       "info": "Información",
-      "success": "Éxito",
-      "yes": "Sí",
-      "no": "No",
-      "ok": "OK",
-      "cancel": "Cancelar",
-      "choose_color": "Elija un color"
+      "success": "Éxito"
     },
-    "about": {
-      "title": "Acerca de Studio de Transcripción Cyberpunk",
-      "version": "Versión 1.0.0",
-      "description": "Una aplicación de transcripción centrada en la privacidad, que ejecuta modelos localmente.",
-      "license": "Licenciado bajo MIT License"
-    },
-    "close_dialog": {
-      "title": "¿Salir o minimizar?",
-      "message": "¿Realmente desea salir de la aplicación o minimizarla a la bandeja?",
-      "minimize": "Minimizar",
-      "exit": "Salir",
-      "cancel": "Cancelar"
-    }
-  },
-  "tray": {
-    "menu": {
-      "show": "Mostrar",
-      "hide": "Ocultar",
-      "quit": "Salir"
-    },
-    "notifications": {
-      "recording_started": "🎤 Grabación iniciada",
-      "recording_stopped": "⏹️ Grabación detenida",
-      "transcription_ready": "Transcripción lista",
-      "transcription_saved": "Transcripción guardada: {filename}",
-      "background_start_title": "🎤 Grabación en segundo plano",
-      "background_start": "Hable ahora. Pulse Super+0 de nuevo para detener.",
-      "background_timeout_title": "⏹️ Tiempo de espera",
-      "background_timeout": "Se alcanzó el tiempo de silencio.",
-      "background_no_audio_title": "⚠️ Nada grabado",
-      "background_no_audio": "No se detectó audio.",
-      "background_processing_title": "⏳ Procesando",
-      "background_processing": "Transcribiendo y consultando DeepSeek...",
-      "deepseek_response_title": "🤖 Respuesta de DeepSeek",
-      "app_minimized": "Aplicación minimizada",
-      "app_minimized_msg": "El programa continúa en segundo plano.",
-      "language_changed_title": "Idioma cambiado",
-      "language_changed_msg": "Reinicie la aplicación para aplicar completamente los cambios de idioma.",
-      "precise_translation_ready": "Traducción refinada disponible"
-    }
-  },
-  "prompts": {
-    "deepseek_system": "Eres un asistente útil y conciso.",
-    "deepseek_user": "{text}",
-    "deepseek_user_with_web": "Consulta del usuario: {text}\n\nResultados de búsqueda en Internet (actuales):\n{web_results}\n\nBasado en la información anterior, responda a la consulta del usuario de forma completa y actualizada.",
-    "correction": "Corrige la gramática del siguiente texto en {language}, manteniendo el significado original:\n\n{text}",
-    "translation": "Traduce el siguiente segmento de {source_lang} a {target_lang}, sin explicaciones adicionales.\n\n{text}",
-    "thinking_prefix": "Pensemos paso a paso."
-  },
-  "common": {
     "audio": {
       "recording": "Grabando...",
       "stopped": "Detenido",
@@ -300,7 +38,7 @@
       "hours_ago": "hace {hours} horas"
     },
     "placeholders": {
-      "type_here": "Escriba aquí..."
+      "type_here": "Escribe aquí..."
     },
     "languages": {
       "pt": "Portugués",
@@ -325,12 +63,290 @@
       "ko": "🇰🇷"
     }
   },
+  "main_window": {
+    "title": "Estudio de Transcripción Cyberpunk",
+    "menu": {
+      "file": "Archivo",
+      "edit": "Editar",
+      "tools": "Herramientas",
+      "help": "Ayuda",
+      "file_menu": {
+        "save_transcription": "Guardar transcripción",
+        "save_translations": "Guardar traducciones",
+        "exit": "Salir"
+      },
+      "edit_menu": {
+        "correct_transcription": "Corregir transcripción",
+        "correct_translation": "Corregir traducción"
+      },
+      "tools_menu": {
+        "settings": "Configuración",
+        "open_deepseek": "Abrir DeepSeek",
+        "cache_stats": "Estadísticas de caché"
+      },
+      "help_menu": {
+        "about": "Acerca de"
+      }
+    },
+    "controls": {
+      "frame_title": "⚡ CONTROLES",
+      "model": "Modelo:",
+      "device": "Dispositivo:",
+      "source_language": "Idioma de origen:",
+      "target_language": "Traducir a:",
+      "buttons": {
+        "translate": "🌐 Traducir",
+        "multitranslate": "🌍 MultiTraducción",
+        "deepseek": "🤖 DeepSeek",
+        "save_translations": "💾 Guardar traducciones"
+      },
+      "tooltips": {
+        "source_language": "Idioma del audio (para transcripción)",
+        "target_language": "Idioma de destino para traducción",
+        "record": "Iniciar/detener grabación (Super+1)",
+        "translate": "Traducir transcripción al idioma seleccionado (Super+2)",
+        "multitranslate": "Traducir transcripción a todos los idiomas",
+        "save": "Guardar transcripción actual en archivo (Super+3)",
+        "deepseek": "Abrir/restaurar ventana de consulta DeepSeek (Super+5)",
+        "correct": "Corregir gramática de la transcripción (Super+4)",
+        "clear": "Limpiar área de transcripción",
+        "save_translations": "Guardar todas las traducciones en un archivo"
+      }
+    },
+    "format_toolbar": {
+      "bold": "N",
+      "italic": "C",
+      "underline": "S",
+      "strike": "T",
+      "font_size": "Tamaño ▼",
+      "color": "🎨",
+      "heading": "H",
+      "datetime": "🕒",
+      "align_left": "⬅",
+      "align_center": "⏺",
+      "align_right": "➡",
+      "align_justify": "↔",
+      "indent_increase": "⇢",
+      "indent_decrease": "⇠",
+      "numbered_list": "1.",
+      "bullet_list": "•",
+      "table": "⧠",
+      "export_html": "HTML",
+      "import_html": "Importar",
+      "tooltips": {
+        "bold": "Negrita (Ctrl+B)",
+        "italic": "Cursiva (Ctrl+I)",
+        "underline": "Subrayado (Ctrl+U)",
+        "strike": "Tachado",
+        "font_size": "Cambiar tamaño de fuente (todo el texto)",
+        "color": "Aplicar color al texto seleccionado",
+        "heading": "Aplicar estilo de título",
+        "datetime": "Insertar fecha y hora actuales",
+        "align_left": "Alinear párrafo a la izquierda",
+        "align_center": "Centrar párrafo",
+        "align_right": "Alinear párrafo a la derecha",
+        "align_justify": "Justificar párrafo",
+        "indent_increase": "Aumentar sangría (añadir 4 espacios)",
+        "indent_decrease": "Disminuir sangría (quitar 4 espacios)",
+        "numbered_list": "Insertar/continuar lista numerada (Enter incrementa)",
+        "bullet_list": "Insertar/quitar viñeta en línea actual",
+        "table": "Insertar tabla simple 3x2",
+        "export_html": "Exportar contenido como HTML (texto plano)",
+        "import_html": "Importar desde archivo HTML (extrae texto plano)"
+      }
+    },
+    "tabs": {
+      "transcription": "📝 TRANSCRIPCIÓN",
+      "translations": "🌐 TRADUCCIONES"
+    },
+    "status": {
+      "microphone_ok": "🎤 Micrófono OK. {count} dispositivo(s)",
+      "no_microphone": "❌ No se encontró dispositivo de entrada de audio.",
+      "loading_model": "⏳ Cargando modelo {model}...",
+      "model_loaded": "✅ Modelo {model} cargado.",
+      "transcribing": "⏳ Transcribiendo...",
+      "transcribing_done": "✅ Transcripción completada.",
+      "translating": "⏳ Traduciendo...",
+      "translating_done": "✅ Traducción completada.",
+      "saving": "💾 Guardando...",
+      "saved": "✅ Guardado en {filename}",
+      "correcting": "✍️ Corrigiendo...",
+      "correcting_done": "✅ Corrección completada.",
+      "precise_transcription_done": "Transcripción refinada completada",
+      "loading_precise_translator": "Cargando modelo de traducción preciso...",
+      "refining_translation": "Refinando traducción...",
+      "precise_translation_done": "Traducción refinada completada",
+      "translating_fast": "Traduciendo con modelo rápido..."
+    }
+  },
+  "settings_window": {
+    "title": "Configuración",
+    "labels": {
+      "ui_language": "Idioma de la interfaz:",
+      "whisper_model": "Modelo Whisper:",
+      "device": "Dispositivo:",
+      "tts_voice": "Voz TTS:",
+      "translation_model": "Modelo de traducción:",
+      "idle_timeout": "Tiempo de inactividad (segundos):",
+      "translation_cache": "Caché de traducciones"
+    },
+    "tooltips": {
+      "ui_language": "Seleccionar idioma de la interfaz",
+      "whisper_model": "Modelo para transcripción (más grande = más preciso, pero más lento)",
+      "device": "Dispositivo para inferencia (GPU recomendada)",
+      "tts_voice": "Elegir la voz para síntesis de habla",
+      "translation_model": "Modelo para traducción (más grande = más preciso, pero más lento)",
+      "idle_timeout": "Tiempo sin uso antes de descargar modelos de la GPU",
+      "clear_cache": "Eliminar todas las traducciones almacenadas en caché"
+    },
+    "buttons": {
+      "apply": "Aplicar",
+      "clear_cache": "Limpiar caché",
+      "refresh_stats": "Actualizar estadísticas"
+    },
+    "cache_stats": "Tamaño: {size}/{max_size} | Aciertos: {hits} | Fallos: {misses}",
+    "cache_stats_unavailable": "Estadísticas no disponibles"
+  },
+  "deepseek_window": {
+    "title": "🤖 DeepSeek - Consulta por Audio",
+    "options_frame": "⚙️ Opciones de Consulta",
+    "controls": {
+      "stop_record": "⏹ Detener y enviar",
+      "send_text": "📤 Enviar",
+      "stop_audio": "⏹ Detener audio",
+      "listen": "🔊 Escuchar respuesta",
+      "tts_unavailable": "🔊 TTS no disponible"
+    },
+    "options": {
+      "thinking": "Pensamiento profundo (razonamiento detallado)",
+      "web_search": "Búsqueda en Internet",
+      "correction": "Corregir texto transcrito"
+    },
+    "labels": {
+      "history": "📜 Historial",
+      "input": "✏️ Entrada (escribe o usa audio)",
+      "status_idle": "⏹ Detenido",
+      "status_recording": "🔴 Grabando...",
+      "status_transcribing": "⏳ Transcribiendo...",
+      "status_consulting": "⏳ Consultando DeepSeek...",
+      "status_response": "✅ Respuesta recibida",
+      "status_preloaded": "✅ Respuesta precargada",
+      "hint": "Enter: enviar | Shift+Enter: nueva línea | Ctrl+R: grabar | Esc: cerrar"
+    },
+    "messages": {
+      "no_audio": "No se grabó audio.",
+      "no_text": "Nada que enviar.",
+      "no_response": "No hay respuesta disponible.",
+      "tts_error": "TTS no disponible.",
+      "transcription_error": "Error en la transcripción",
+      "deepseek_error": "Error en la consulta: {error}"
+    },
+    "history": {
+      "user_prefix": "[{timestamp}] Tú:",
+      "assistant_prefix": "[{timestamp}] DeepSeek:"
+    },
+    "tooltips": {
+      "record": "Iniciar grabación de audio (Ctrl+R)",
+      "send_text": "Enviar texto escrito (Enter)",
+      "stop_audio": "Detener reproducción de audio en curso",
+      "listen": "Escuchar la última respuesta (TTS)",
+      "thinking": "Activa el modo de razonamiento detallado",
+      "web_search": "Permite búsqueda actualizada (vía DuckDuckGo)",
+      "correction": "Corrige automáticamente la transcripción antes de enviar"
+    }
+  },
+  "meeting_window": {
+    "title": "🎤 Meeting Recorder",
+    "sink_frame": "Fuente de Audio",
+    "speaker_frame": "Hablante Actual",
+    "transcript_frame": "Transcripción",
+    "controls": {
+      "start": "▶ Grabar",
+      "stop": "⏹ DETENER GRABACIÓN"
+    },
+    "speaker": {
+      "none": "Nadie hablando",
+      "waiting": "Esperando...",
+      "current": "Hablante: {speaker}"
+    },
+    "status": {
+      "ready": "✅ Listo.",
+      "recording": "🔴 GRABANDO...",
+      "stopping": "Deteniendo...",
+      "processing": "⏳ Procesando audio..."
+    },
+    "errors": {
+      "no_sink": "Selecciona una fuente de audio."
+    }
+  },
+  "dialogs": {
+    "correction": {
+      "title": "Corrección de Transcripción",
+      "title_response": "Corrección de Respuesta",
+      "original": "Texto Original",
+      "corrected": "Texto Corregido",
+      "apply": "Aplicar",
+      "close": "Cerrar",
+      "correcting": "Corrigiendo...",
+      "error": "Error en la corrección: {error}"
+    },
+    "about": {
+      "title": "Acerca de Cyberpunk Transcription Studio",
+      "version": "Versión 1.0.0",
+      "description": "Una aplicación de transcripción centrada en la privacidad que ejecuta modelos localmente.",
+      "license": "Licenciado bajo MIT License"
+    },
+    "close_dialog": {
+      "title": "¿Salir o minimizar?",
+      "message": "¿Deseas salir de la aplicación o minimizarla a la bandeja?",
+      "minimize": "Minimizar",
+      "exit": "Salir"
+    },
+    "cache_stats": {
+      "title": "Estadísticas del Caché de Traducciones"
+    }
+  },
+  "tray": {
+    "menu": {
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "quit": "Salir"
+    },
+    "notifications": {
+      "recording_started": "🎤 Grabación iniciada",
+      "recording_stopped": "⏹️ Grabación finalizada",
+      "transcription_ready": "Transcripción lista",
+      "transcription_saved": "Transcripción guardada: {filename}",
+      "background_start_title": "🎤 Grabación en segundo plano",
+      "background_start": "Habla ahora. Presiona Super+0 nuevamente para detener.",
+      "background_timeout_title": "⏹️ Tiempo límite",
+      "background_timeout": "Se alcanzó el tiempo límite de silencio.",
+      "background_no_audio_title": "⚠️ Nada grabado",
+      "background_no_audio": "No se detectó audio.",
+      "background_processing_title": "⏳ Procesando",
+      "background_processing": "Transcribiendo y consultando DeepSeek...",
+      "deepseek_response_title": "🤖 Respuesta de DeepSeek",
+      "app_minimized": "Aplicación minimizada",
+      "app_minimized_msg": "El programa continúa en segundo plano.",
+      "language_changed_title": "Idioma cambiado",
+      "language_changed_msg": "Reinicia la aplicación para aplicar completamente los cambios de idioma.",
+      "precise_translation_ready": "Traducción refinada disponible"
+    }
+  },
+  "prompts": {
+    "deepseek_system": "Eres un asistente útil y conciso.",
+    "deepseek_user": "{text}",
+    "deepseek_user_with_web": "Consulta del usuario: {text}\n\nResultados de búsqueda en Internet (actuales):\n{web_results}\n\nBasándote en la información anterior, responde la consulta del usuario de manera completa y actualizada.",
+    "correction": "Corrige la gramática del siguiente texto en {language}, manteniendo el significado original:\n\n{text}",
+    "translation": "Traduce el siguiente segmento de {source_lang} a {target_lang}, sin explicaciones adicionales.\n\n{text}",
+    "thinking_prefix": "Pensemos paso a paso."
+  },
   "errors": {
     "transcription": "Error en la transcripción: {error}",
     "translation": "Error en la traducción de {source} a {target}: {error}",
     "correction": "Error en la corrección gramatical: {error}"
   },
   "translation": {
-    "cache_cleared": "Caché de traducciones limpiada correctamente."
+    "cache_cleared": "Caché de traducciones limpiado con éxito."
   }
 }

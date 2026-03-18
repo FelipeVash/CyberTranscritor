@@ -1,6 +1,6 @@
 """
 Main application window.
-Builds the UI and delegates actions to the core.controller.
+Builds the UI and delegates actions to the controller.
 All logging is done through the centralized logger.
 """
 
@@ -29,16 +29,16 @@ from core import config
 class TranscriptionStudio:
     """
     Main application window.
-    Builds the UI and delegates actions to the core.controller.
+    Builds the UI and delegates actions to the controller.
     """
 
     def __init__(self, controller):
         self.controller = controller
         self.root = tb.Window(themename="darkly")
+        style = tb.Style.get_instance()
+        configure_styles(style)
         self.root.title(_("main_window.title"))
-        self.root.geometry("1100x1200")  # Updated height
-
-        configure_styles(self.root.style)
+        self.root.geometry("1100x1200")
 
         # Initialize controller variables with the root window
         self.controller.init_variables(self.root)
@@ -50,7 +50,7 @@ class TranscriptionStudio:
         self.btn_deepseek = None
         self.rec_indicator = None
         self.status_var = None
-        self.vram_label = None  # Will be set in setup_ui
+        self.vram_label = None
         self.progress_bar = None
 
         self.setup_menu()
@@ -68,11 +68,6 @@ class TranscriptionStudio:
         # Start D-Bus queue polling and GLib event processing
         self.poll_dbus_queue()
         self.process_glib_events()
-
-        # Start VRAM monitoring
-        self.update_vram_display()
-
-        # Removed: self.root.after(1000, self.controller.check_model_idle)  # Not implemented
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         logger.info("Main window initialized")
@@ -107,7 +102,7 @@ class TranscriptionStudio:
         tools_menu.add_command(label=_("main_window.menu.tools_menu.settings"), 
                               command=self.open_settings)
         tools_menu.add_command(label=_("main_window.menu.tools_menu.cache_stats"), 
-                       command=self.show_cache_stats)
+                               command=self.show_cache_stats)
         tools_menu.add_command(label=_("main_window.menu.tools_menu.open_deepseek"), 
                               command=self.controller.open_deepseek_window)
         tools_menu.add_separator()
@@ -161,7 +156,7 @@ class TranscriptionStudio:
         control_frame.pack(fill="x", padx=10, pady=5)
         control_frame.i18n_key = "main_window.controls.frame_title"
 
-        # Row 0: Source language and target language only (model/device moved to settings)
+        # Row 0: Source language and target language
         lbl_source = ttk.Label(control_frame, text=_("main_window.controls.source_language"))
         lbl_source.grid(row=0, column=0, padx=5, pady=5, sticky="w")
         lbl_source.i18n_key = "main_window.controls.source_language"
@@ -180,14 +175,14 @@ class TranscriptionStudio:
         target_combo.grid(row=0, column=3, padx=5, pady=5, sticky="w")
         ToolTip(target_combo, text_key="main_window.tooltips.target_language")
 
-        # Row 1: Action buttons (record, translate, multitranslate, deepseek)
+        # Row 1: Action buttons
         btn_frame = ttk.Frame(control_frame)
-        btn_frame.grid(row=1, column=0, columnspan=4, pady=15)  # Increased pady for spacing
+        btn_frame.grid(row=1, column=0, columnspan=4, pady=15)
 
         # Record button (Pink)
-        self.btn_record = ttk.Button(btn_frame, text=_("main_window.controls.buttons.record"),
+        self.btn_record = ttk.Button(btn_frame, text=_("common.buttons.record"),
                                       style="Pink.TButton", width=15, command=self.controller.toggle_recording)
-        self.btn_record.pack(side=tk.LEFT, padx=8)  # Increased padx
+        self.btn_record.pack(side=tk.LEFT, padx=8)
         self.btn_record.i18n_key = "main_window.controls.buttons.record"
         ToolTip(self.btn_record, text_key="main_window.controls.buttons.record_tooltip")
 
@@ -212,12 +207,12 @@ class TranscriptionStudio:
         self.btn_deepseek.i18n_key = "main_window.controls.buttons.deepseek"
         ToolTip(self.btn_deepseek, text_key="main_window.controls.buttons.deepseek_tooltip")
 
-        # Recording indicator (below buttons)
-        self.rec_indicator = tk.Label(self.root, text=_("main_window.indicators.stopped"),
+        # Recording indicator
+        self.rec_indicator = tk.Label(self.root, text=_("common.status.stopped"),
                                       bg="#404040", fg="#888888",
                                       font=("Arial", 16, "bold"), pady=10)
         self.rec_indicator.pack(fill="x", padx=10, pady=5)
-        self.rec_indicator.i18n_key = "main_window.indicators.stopped"
+        self.rec_indicator.i18n_key = "main_window.indicators.stopped"  # mantido para compatibilidade de i18n dinâmico, mas o texto é da common
         ToolTip(self.rec_indicator, text_key="main_window.tooltips.rec_indicator")
 
         # ========== TRANSCRIPTION AREA ==========
@@ -230,20 +225,19 @@ class TranscriptionStudio:
                                                     height=8)
         self.trans_toolbar = FormatToolbar(text_frame, self.text_area, self)
         self.trans_toolbar.pack(fill="x", pady=(0,5))
-        # Add an extra empty line
         ttk.Label(text_frame, text="").pack(pady=(0,2))
         self.text_area.pack(fill="both", expand=True, pady=(0,5))
 
         btn_frame_trans = ttk.Frame(text_frame)
         btn_frame_trans.pack(fill="x", pady=10)
-        btn_correct_trans = ttk.Button(btn_frame_trans, text=_("main_window.controls.buttons.correct"),
+        btn_correct_trans = ttk.Button(btn_frame_trans, text=_("common.buttons.correct"),
                                         style="Cyan.TButton", command=self.controller.correct_transcription)
         btn_correct_trans.pack(side=tk.LEFT, padx=5)
         btn_correct_trans.i18n_key = "main_window.controls.buttons.correct"
         ToolTip(btn_correct_trans, text_key="main_window.controls.buttons.correct_tooltip")
 
-        btn_clear_trans = ttk.Button(btn_frame_trans, text=_("main_window.controls.buttons.clear"),
-                                      style="secondary", command=lambda: self.text_area.delete(1.0, tk.END))
+        btn_clear_trans = ttk.Button(btn_frame_trans, text=_("common.buttons.clear"),
+                                      style="secondary.TButton", command=lambda: self.text_area.delete(1.0, tk.END))
         btn_clear_trans.pack(side=tk.LEFT, padx=5)
         btn_clear_trans.i18n_key = "main_window.controls.buttons.clear"
         ToolTip(btn_clear_trans, text_key="main_window.controls.buttons.clear_tooltip")
@@ -265,7 +259,7 @@ class TranscriptionStudio:
         btn_frame_resp.pack(fill="x", pady=10)
         
         # Correct button
-        btn_correct_resp = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.correct"),
+        btn_correct_resp = ttk.Button(btn_frame_resp, text=_("common.buttons.correct"),
                                        style="Cyan.TButton", command=self.controller.correct_translation)
         btn_correct_resp.pack(side=tk.LEFT, padx=6)
         btn_correct_resp.i18n_key = "main_window.controls.buttons.correct"
@@ -279,33 +273,30 @@ class TranscriptionStudio:
         ToolTip(btn_save_translations, text_key="main_window.controls.buttons.save_translations_tooltip")
 
         # Clear button
-        btn_clear_resp = ttk.Button(btn_frame_resp, text=_("main_window.controls.buttons.clear"),
-                            style="secondary", command=self.controller.clear_translations)
-    
+        btn_clear_resp = ttk.Button(btn_frame_resp, text=_("common.buttons.clear"),
+                                     style="secondary.TButton", command=self.controller.clear_translations)
         btn_clear_resp.pack(side=tk.LEFT, padx=6)
         btn_clear_resp.i18n_key = "main_window.controls.buttons.clear"
         ToolTip(btn_clear_resp, text_key="main_window.controls.buttons.clear_tooltip")
 
-        # Configure text tags (colors, fonts)
+        # Configure text tags
         self._configure_tags()
 
-        # ========== STATUS BAR WITH VRAM INDICATOR ==========
+        # ========== STATUS BAR ==========
         status_frame = ttk.Frame(self.root)
         status_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
         self.status_var = tk.StringVar()
-        self.status_var.set(_("main_window.indicators.ready"))
+        self.status_var.set(_("common.status.ready"))
         status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
         status_label.i18n_key = None
         ToolTip(status_label, text_key="main_window.tooltips.status_bar")
 
-        # VRAM indicator label (use direct text update, not StringVar for reliability)
         self.vram_label = ttk.Label(status_frame, text="VRAM: ...", relief=tk.SUNKEN, anchor=tk.E, width=18, foreground="white")
         self.vram_label.pack(side=tk.RIGHT, padx=2)
         ToolTip(self.vram_label, "GPU memory usage (updated every 5s)")
 
-        # Indeterminate progress bar (packed below status frame)
         self.progress_bar = tb.Progressbar(
             self.root,
             mode='indeterminate',
@@ -313,9 +304,8 @@ class TranscriptionStudio:
             length=200
         )
         self.progress_bar.pack(side=tk.BOTTOM, pady=2)
-        self.progress_bar.pack_forget()  # initially hidden
+        self.progress_bar.pack_forget()
 
-        # Pass UI references to the controller
         self.controller.set_ui_refs(
             text_area=self.text_area,
             trans_area=self.trans_area,
@@ -327,9 +317,9 @@ class TranscriptionStudio:
         )
 
         logger.debug("UI setup completed")
-
+    
     def _configure_tags(self):
-        """Configure text tags for formatting (bold, italic, colors, etc.)."""
+        """Configure text tags for formatting."""
         base_font = tkfont.Font(font=self.text_area.cget("font"))
         family = base_font.actual()["family"]
         size = base_font.actual()["size"]
@@ -383,10 +373,10 @@ class TranscriptionStudio:
         usage = self.controller.get_gpu_memory_usage()
         logger.debug(f"VRAM usage from controller: {usage}")
         self.vram_label.config(text=usage)
-        self.vram_label.update_idletasks()  # Force immediate update
+        self.vram_label.update_idletasks()
         self.root.after(5000, self.update_vram_display)
 
-    # ==================== DELEGATED METHODS (FOR TRAY ICON) ====================
+    # ==================== DELEGATED METHODS ====================
 
     def show_window(self):
         """Show the main window and bring it to front."""

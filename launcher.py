@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import tkinter as tk
-from tkinter import ttk
+import ttkbootstrap as tb
+from ttkbootstrap.constants import *
 import subprocess
 import sys
 from pathlib import Path
+from core.frontend.styles import configure_styles
 
 BASE_DIR = Path(__file__).parent
 
@@ -18,25 +19,29 @@ def launch_app(script_name, venv_name):
         return
     subprocess.Popen([str(python_exe), str(script_path)])
 
-root = tk.Tk()
+root = tb.Window(themename="darkly")
 root.title("Suíte Transcritor")
 root.geometry("400x300")
 root.resizable(False, False)
 
-frame = ttk.Frame(root, padding=20)
-frame.pack(fill=tk.BOTH, expand=True)
+style = tb.Style.get_instance()
+configure_styles(style)
 
-ttk.Label(frame, text="Escolha um aplicativo:", font=("Arial", 14)).pack(pady=10)
+frame = tb.Frame(root, padding=20)
+frame.pack(fill=BOTH, expand=True)
 
-ttk.Button(frame, text="🎤 Transcritor / Tradutor",
-           command=lambda: launch_app("main_app.py", "venv_transcritor"),
-           width=30).pack(pady=5)
+tb.Label(frame, text="Escolha um aplicativo:", font=("Arial", 14)).pack(pady=10)
 
-ttk.Button(frame, text="🎙️ Meeting Recorder",
-           command=lambda: launch_app("meeting_app.py", "venv_meeting"),
-           width=30).pack(pady=5)
+tb.Button(frame, text="🎤 Transcritor / Tradutor",
+          command=lambda: launch_app("transcritor_app.py", "venv_transcritor"),
+          width=30, style="Cyan.TButton").pack(pady=5)
 
-ttk.Button(frame, text="🤖 DeepSeek Chat (em breve)",
-           state="disabled", width=30).pack(pady=5)
+tb.Button(frame, text="🎙️ Meeting Recorder",
+          command=lambda: launch_app("meeting_app.py", "venv_meeting"),
+          width=30, style="Pink.TButton").pack(pady=5)
+
+tb.Button(frame, text="🤖 DeepSeek Chat",
+          command=lambda: launch_app("deepseek_app.py", "venv_deepseek"),
+          width=30, style="secondary.TButton").pack(pady=5)
 
 root.mainloop()

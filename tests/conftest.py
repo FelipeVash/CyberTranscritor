@@ -117,50 +117,58 @@ def mock_controller():
     with patch('core.controller.app_controller.ModelManager'), \
          patch('core.controller.app_controller.DeepSeekClient') as MockDeepSeek, \
          patch('core.controller.app_controller.AudioPlayer'), \
-         patch('core.controller.app_controller.DBusService'):
+         patch('core.controller.app_controller.DBusService'), \
+         patch('core.backend.audio.recorder.AudioRecorder'):   # <-- importante: evita threads reais
 
         mock_deepseek = MagicMock()
         MockDeepSeek.return_value = mock_deepseek
 
         controller = AppController()
-        core.controller._root = MagicMock()  # mock root to avoid Tk
+        # Mock root to avoid Tk
+        controller._root = MagicMock()
 
         # Mock UI references
-        core.controller.text_area = MagicMock()
-        core.controller.trans_area = MagicMock()
-        core.controller.btn_record = MagicMock()
-        core.controller.btn_deepseek = MagicMock()
-        core.controller.rec_indicator = MagicMock()
-        core.controller.status_var = MagicMock()
-        core.controller.progress_bar = MagicMock()
+        controller.text_area = MagicMock()
+        controller.trans_area = MagicMock()
+        controller.btn_record = MagicMock()
+        controller.btn_deepseek = MagicMock()
+        controller.rec_indicator = MagicMock()
+        controller.status_var = MagicMock()
+        controller.progress_bar = MagicMock()
 
         # Mock Tkinter variables
-        core.controller.model_size = MagicMock()
-        core.controller.device = MagicMock()
-        core.controller.current_language = MagicMock()
-        core.controller.translate_target = MagicMock()
-        core.controller.ui_language = MagicMock()
-        core.controller.tts_voice = MagicMock()
-        core.controller.translation_model = MagicMock()
-        core.controller.idle_timeout = MagicMock()
+        controller.model_size = MagicMock()
+        controller.device = MagicMock()
+        controller.current_language = MagicMock()
+        controller.translate_target = MagicMock()
+        controller.ui_language = MagicMock()
+        controller.tts_voice = MagicMock()
+        controller.translation_model = MagicMock()
+        controller.idle_timeout = MagicMock()
 
         # Default return values (serializable)
-        core.controller.current_language.get.return_value = "pt"
-        core.controller.model_size.get.return_value = "tiny"
-        core.controller.translate_target.get.return_value = "en"
-        core.controller.tts_voice.get.return_value = "pt_BR-faber-medium"
-        core.controller.device.get.return_value = "cuda"
-        core.controller.ui_language.get.return_value = "English (en)"
-        core.controller.translation_model.get.return_value = "nllb-3.3B"
-        core.controller.idle_timeout.get.return_value = "60"
+        controller.current_language.get.return_value = "pt"
+        controller.model_size.get.return_value = "tiny"
+        controller.translate_target.get.return_value = "en"
+        controller.tts_voice.get.return_value = "pt_BR-faber-medium"
+        controller.device.get.return_value = "cuda"
+        controller.ui_language.get.return_value = "English (en)"
+        controller.translation_model.get.return_value = "nllb-3.3B"
+        controller.idle_timeout.get.return_value = "60"
 
         # Mock service methods
-        core.controller.show_info = MagicMock()
-        core.controller.start_progress = MagicMock()
-        core.controller.stop_progress = MagicMock()
-        core.controller.translation_service = MagicMock()
-        core.controller.translation_service.clear_cache = MagicMock()
-        core.controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
+        controller.show_info = MagicMock()
+        controller.start_progress = MagicMock()
+        controller.stop_progress = MagicMock()
+
+        # Mock transcription_service
+        controller.transcription_service = MagicMock()
+        controller.transcription_service.transcribe = MagicMock(return_value="mocked transcription")
+
+        # Mock translation_service
+        controller.translation_service = MagicMock()
+        controller.translation_service.clear_cache = MagicMock()
+        controller.translation_service.cache_stats = MagicMock(return_value={"size": 0, "max_size": 1000, "hits": 0, "misses": 0})
 
         return controller
 
@@ -170,3 +178,10 @@ def mock_root():
     root = MagicMock(spec=tk.Tk)
     root.winfo_exists.return_value = True
     return root
+
+@pytest.fixture(autouse=True)
+def mock_audio_recorder_methods():
+    """Prevent AudioRecorder from starting real threads during tests."""
+    with patch('core.backend.audio.recorder.AudioRecorder.start'), \
+         patch('core.backend.audio.recorder.AudioRecorder._record'):
+        yield

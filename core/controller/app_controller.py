@@ -24,7 +24,7 @@ from core.backend.services.transcription_service import TranscriptionService, Tr
 from core.backend.services.translation_service import TranslationService, TranslationError
 from core.backend.services.correction_service import CorrectionService
 from core.backend.background.background_recorder import BackgroundRecorder
-from core.frontend.deepseek_window import DeepSeekWindow
+from apps.deepseek.window import DeepSeekWindow
 from core.utils.constants import ALL_LANGUAGES, ALL_LANGUAGE_NAMES, TTS_VOICES, TRANSLATION_MODELS
 from core.utils.config_persistence import load_config, save_config, CONFIG_FILE
 from core.utils.i18n import _, set_language, get_current_language, get_available_languages, get_language_display
@@ -498,11 +498,7 @@ class AppController:
         else:
             logger.info("Creating new DeepSeek window")
             try:
-                self.deepseek_window = DeepSeekWindow(
-                    self.root,
-                    self,
-                    audio_player=self.audio_player
-                )
+                self.deepseek_window = DeepSeekWindow(parent=self.root)
             except Exception as e:
                 self._handle_service_error(e, "deepseek_window.messages.deepseek_error", error=str(e))
 
@@ -514,11 +510,9 @@ class AppController:
         try:
             logger.info("Opening DeepSeek window with context")
             self.deepseek_window = DeepSeekWindow(
-                self.root,
-                self,
+                parent=self.root,
                 initial_prompt=prompt,
-                initial_response=response,
-                audio_player=self.audio_player
+                initial_response=response
             )
         except Exception as e:
             self._handle_service_error(e)
